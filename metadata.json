@@ -1,0 +1,28 @@
+{
+  "name": "tictactoe",
+  "version": "1.0.0",
+  "type": "core",
+  "category": "game",
+  "description": "Tic-tac-toe module wrapping the libtictactoe C library",
+  "main": "tictactoe_plugin",
+  "dependencies": [],
+
+  "nix": {
+    "packages": {
+      "build": [],
+      "runtime": []
+    },
+    "external_libraries": [
+      {
+        "name": "tictactoe",
+        "vendor_path": "lib"
+      }
+    ],
+    "cmake": {
+      "find_packages": [],
+      "extra_sources": [],
+      "extra_include_dirs": ["lib"],
+      "extra_link_libraries": []
+    }
+  }
+}
