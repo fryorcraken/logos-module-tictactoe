@@ -1,0 +1,11 @@
+# Vendored C library binaries (build locally via nix, do not commit)
+lib/*.so
+lib/*.dylib
+lib/*.a
+
+# Nix build output
+result
+result-*
+
+# CMake build directory
+build/
