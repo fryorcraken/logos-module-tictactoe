@@ -1,0 +1,24 @@
+{
+  "name": "tictactoe_ui",
+  "version": "1.0.0",
+  "type": "ui",
+  "category": "games",
+  "description": "Tic-tac-toe UI — widget frontend for tictactoe module",
+  "main": "tictactoe_ui_plugin",
+  "icon": "icons/tictactoe.png",
+  "dependencies": ["tictactoe"],
+
+  "nix": {
+    "packages": {
+      "build": [],
+      "runtime": []
+    },
+    "external_libraries": [],
+    "cmake": {
+      "find_packages": [],
+      "extra_sources": [],
+      "extra_include_dirs": [],
+      "extra_link_libraries": []
+    }
+  }
+}
