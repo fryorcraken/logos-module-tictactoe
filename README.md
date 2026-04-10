@@ -1,11 +1,14 @@
 # logos-module-tictactoe
 
-A tic-tac-toe Logos mini app. Contains two modules:
+A tic-tac-toe Logos mini app. Contains a core module and two alternative UI frontends (pick either one — they provide the same gameplay):
 
 - **tictactoe** (core) — wraps a C tic-tac-toe library, exposing game methods (`newGame`, `play`, `status`, `getCell`, `currentPlayer`) over the Logos plugin interface
-- **tictactoe_ui** (UI) — C++ Qt widget frontend that calls the core module via the generated Logos SDK
+- **tictactoe_ui** (C++ widget UI) — compiled C++ Qt widget frontend, calls the core module via the generated Logos SDK (Tutorial Part 3, Option B)
+- **tictactoe_ui_qml** (QML UI) — declarative QML frontend, calls the core module via the `logos.callModule()` bridge (Tutorial Part 2). No compilation needed.
 
-Built following the [Logos module tutorials](https://github.com/logos-co/logos-tutorial) (Part 1 + Part 3, Option B).
+Both UIs are functionally identical — same 3x3 board, same X/O turns, same win/draw detection, same dark-theme styling. Choose whichever you prefer.
+
+Built following the [Logos module tutorials](https://github.com/logos-co/logos-tutorial) (Part 1 + Part 2 + Part 3, Option B).
 
 **Quick start:** grab the pre-built `.lgx` files from the [latest release](https://github.com/fryorcraken/logos-module-tictactoe/releases/latest) and install them in logos-basecamp — no compilation needed. See [Install into logos-basecamp](#install-into-logos-basecamp).
 
@@ -13,11 +16,13 @@ Built following the [Logos module tutorials](https://github.com/logos-co/logos-t
 
 Tested with [logos-basecamp v0.1.1](https://github.com/nicholasgasior/logos-basecamp/releases/tag/v0.1.1) (AppImage).
 
-Download both `.lgx` files from the [latest release](https://github.com/fryorcraken/logos-module-tictactoe/releases).
+Download the `.lgx` files from the [latest release](https://github.com/fryorcraken/logos-module-tictactoe/releases).
 
 1. Open **logos-basecamp**
 2. Go to **modules** → **install LGX Package** and select `logos-tictactoe-module-lib.lgx` (core module)
-3. Go to **modules** → **install LGX Package** again and select `logos-tictactoe_ui-module-lib.lgx` (UI module)
+3. Go to **modules** → **install LGX Package** again and select **one** of (both provide the same gameplay):
+   - `logos-tictactoe_ui-module-lib.lgx` — C++ widget UI
+   - `logos-tictactoe_ui_qml-module-lib.lgx` — QML UI
 
 The tic-tac-toe UI tab appears in the sidebar.
 
@@ -49,7 +54,12 @@ echo "linux-amd64" > "$BASECAMP_DIR/plugins/tictactoe_ui/variant"
 Requires [Nix](https://nixos.org/download.html) with flakes enabled.
 
 ```bash
+# C++ widget UI
 cd tictactoe-ui
+nix run . --override-input tictactoe path:../tictactoe
+
+# QML UI
+cd tictactoe-ui-qml
 nix run . --override-input tictactoe path:../tictactoe
 ```
 
@@ -68,7 +78,7 @@ nix build
 
 Output: `tictactoe/result/lib/tictactoe_plugin.so` and `tictactoe/result/lib/libtictactoe.so`.
 
-### UI module
+### UI module (C++ widget)
 
 ```bash
 cd tictactoe-ui
@@ -77,6 +87,15 @@ nix build --override-input tictactoe path:../tictactoe
 
 Output: `tictactoe-ui/result/lib/tictactoe_ui_plugin.so`.
 
+### UI module (QML)
+
+```bash
+cd tictactoe-ui-qml
+nix build --override-input tictactoe path:../tictactoe
+```
+
+Output: QML files staged in `tictactoe-ui-qml/result/`.
+
 ### Generate LGX
 
 ```bash
@@ -84,8 +103,12 @@ Output: `tictactoe-ui/result/lib/tictactoe_ui_plugin.so`.
 cd tictactoe
 nix build '.#lgx-portable' --out-link result-lgx-portable
 
-# UI module
+# UI module (C++ widget)
 cd tictactoe-ui
+nix build '.#lgx-portable' --override-input tictactoe path:../tictactoe --out-link result-lgx-portable
+
+# UI module (QML)
+cd tictactoe-ui-qml
 nix build '.#lgx-portable' --override-input tictactoe path:../tictactoe --out-link result-lgx-portable
 ```
 

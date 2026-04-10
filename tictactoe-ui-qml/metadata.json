@@ -1,0 +1,24 @@
+{
+  "name": "tictactoe_ui_qml",
+  "version": "1.0.0",
+  "description": "Tic-tac-toe QML UI — QML frontend for tictactoe module",
+  "type": "ui_qml",
+  "main": "Main.qml",
+  "dependencies": ["tictactoe"],
+  "category": "games",
+  "icon": "icons/tictactoe.png",
+
+  "nix": {
+    "packages": {
+      "build": [],
+      "runtime": []
+    },
+    "external_libraries": [],
+    "cmake": {
+      "find_packages": [],
+      "extra_sources": [],
+      "extra_include_dirs": [],
+      "extra_link_libraries": []
+    }
+  }
+}
