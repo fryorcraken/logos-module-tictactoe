@@ -38,7 +38,7 @@ Requires [Nix](https://nixos.org/download.html) with flakes enabled.
 nix build
 ```
 
-Output: `result-lib/lib/tictactoe_plugin.so` and `result/lib/libtictactoe.so`.
+Output: `result/lib/tictactoe_plugin.so` and `result/lib/libtictactoe.so`.
 
 ### Generate LGX
 
@@ -52,13 +52,13 @@ nix build '.#lgx-portable'
 
 ### Inspect
 
-Requires the `nix build` (lib) output, not the lgx output:
+Requires the lib build output (not the lgx). Run `nix build` first:
 
 ```bash
-nix build --out-link result-lib
+nix build
 nix build 'github:logos-co/logos-module#lm' --out-link ./lm
-./lm/bin/lm metadata result-lib/lib/tictactoe_plugin.so
-./lm/bin/lm methods  result-lib/lib/tictactoe_plugin.so
+./lm/bin/lm metadata result/lib/tictactoe_plugin.so
+./lm/bin/lm methods  result/lib/tictactoe_plugin.so
 ```
 
 ## Test with logoscore
@@ -87,8 +87,13 @@ mkdir -p modules
   `logoscore call`:
 
   ```bash
+  # Build the lib output (nix build '.#lgx' overwrites the result symlink,
+  # so re-run nix build or use --out-link to keep both):
+  nix build
+
   # lm shows all 5 game methods + initLogos + eventResponse:
-  ./lm/bin/lm methods result-lib/lib/tictactoe_plugin.so
+  nix build 'github:logos-co/logos-module#lm' --out-link ./lm
+  ./lm/bin/lm methods result/lib/tictactoe_plugin.so
 
   # logoscore can invoke them:
   ./logos/bin/logoscore call tictactoe play 0 0   # returns {"result":0}
