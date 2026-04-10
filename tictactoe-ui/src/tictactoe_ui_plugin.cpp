@@ -49,6 +49,10 @@ QWidget* TicTacToeUiPlugin::createWidget(LogosAPI* logosAPI)
 
     auto* widget = new QWidget();
     widget->setMinimumSize(360, 440);
+    widget->setStyleSheet("QWidget { color: #e0e0e0; } "
+                          "QPushButton { background-color: #2a2a2a; border: 1px solid #555; border-radius: 4px; color: #e0e0e0; } "
+                          "QPushButton:hover { background-color: #3a3a3a; } "
+                          "QPushButton:disabled { background-color: #1a1a1a; border-color: #333; color: #666; }");
     auto* root = new QVBoxLayout(widget);
     root->setContentsMargins(24, 24, 24, 24);
     root->setSpacing(16);
@@ -112,9 +116,9 @@ QWidget* TicTacToeUiPlugin::createWidget(LogosAPI* logosAPI)
                 cells[r][c]->setEnabled(cell == CELL_EMPTY && s == STATUS_ONGOING);
 
                 if (cell == CELL_X)
-                    cells[r][c]->setStyleSheet("color: #4a9eff; font-weight: bold;");
+                    cells[r][c]->setStyleSheet("color: #4a9eff; font-weight: bold; background-color: #2a2a2a; border: 1px solid #555;");
                 else if (cell == CELL_O)
-                    cells[r][c]->setStyleSheet("color: #ff6b6b; font-weight: bold;");
+                    cells[r][c]->setStyleSheet("color: #ff6b6b; font-weight: bold; background-color: #2a2a2a; border: 1px solid #555;");
                 else
                     cells[r][c]->setStyleSheet("");
             }

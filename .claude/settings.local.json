@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(nix build:*)",
+      "Read(//home/fryorcraken/.local/share/Logos/**)",
+      "Read(//home/fryorcraken/.local/share/Logos/LogosBasecamp/modules/**)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)"
+    ]
+  }
+}

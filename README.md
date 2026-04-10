@@ -1,60 +1,98 @@
 # logos-module-tictactoe
 
-A Logos module wrapping a tic-tac-toe C library. Exposes game methods (`newGame`, `play`, `status`, `getCell`, `currentPlayer`) over the Logos plugin interface.
+A tic-tac-toe Logos mini app. Contains two modules:
 
-Tested with [logos-basecamp v0.1.1](https://github.com/nicholasgasior/logos-basecamp/releases/tag/v0.1.1) (AppImage).
+- **tictactoe** (core) — wraps a C tic-tac-toe library, exposing game methods (`newGame`, `play`, `status`, `getCell`, `currentPlayer`) over the Logos plugin interface
+- **tictactoe_ui** (UI) — C++ Qt widget frontend that calls the core module via the generated Logos SDK
+
+Built following the [Logos module tutorials](https://github.com/logos-co/logos-tutorial) (Part 1 + Part 3, Option B).
+
+## Standalone UI
+
+The quickest way to see the UI. Requires [Nix](https://nixos.org/download.html) with flakes enabled.
+
+```bash
+cd tictactoe-ui
+nix run . --override-input tictactoe path:../tictactoe
+```
+
+A standalone window opens with a 3x3 tic-tac-toe board. The core module is automatically bundled and loaded — full gameplay works (X/O turns, win/draw detection, new game).
 
 ## Install into logos-basecamp
 
-Download the `.lgx` file from the [latest release](https://github.com/fryorcraken/logos-module-tictactoe/releases).
+Tested with [logos-basecamp v0.1.1](https://github.com/nicholasgasior/logos-basecamp/releases/tag/v0.1.1) (AppImage).
+
+Download both `.lgx` files from the [latest release](https://github.com/fryorcraken/logos-module-tictactoe/releases).
 
 1. Open **logos-basecamp**
-2. Go to **Package Manager**
-3. Click **Install from file**
-4. Select the downloaded `.lgx` file
+2. Go to **modules** → **install LGX Package** and select `logos-tictactoe-module-lib.lgx` (core module)
+3. Go to **modules** → **install LGX Package** again and select `logos-tictactoe_ui-module-lib.lgx` (UI module)
 
-The module appears in the module list.
+The tic-tac-toe UI tab appears in the sidebar.
 
 ### Alternative: manual install
 
-If the Package Manager UI is unavailable, extract and install the lgx manually:
+If the Package Manager UI is unavailable, extract and install manually:
 
 ```bash
 BASECAMP_DIR="$HOME/.local/share/Logos/LogosBasecamp"  # Linux
 # BASECAMP_DIR="$HOME/Library/Application Support/Logos/LogosBasecamp"  # macOS
-DEST="$BASECAMP_DIR/modules/tictactoe"
-mkdir -p "$DEST" /tmp/ttt-lgx
+
+# Core module
+mkdir -p "$BASECAMP_DIR/modules/tictactoe" /tmp/ttt-lgx
 tar xzf logos-tictactoe-module-lib.lgx -C /tmp/ttt-lgx
-cp /tmp/ttt-lgx/variants/linux-amd64/* "$DEST/"
-cp /tmp/ttt-lgx/manifest.json "$DEST/"
-echo "linux-amd64" > "$DEST/variant"
+cp /tmp/ttt-lgx/variants/linux-amd64/* "$BASECAMP_DIR/modules/tictactoe/"
+cp /tmp/ttt-lgx/manifest.json "$BASECAMP_DIR/modules/tictactoe/"
+echo "linux-amd64" > "$BASECAMP_DIR/modules/tictactoe/variant"
+
+# UI module
+mkdir -p "$BASECAMP_DIR/plugins/tictactoe_ui" /tmp/ttt-ui-lgx
+tar xzf logos-tictactoe_ui-module-lib.lgx -C /tmp/ttt-ui-lgx
+cp /tmp/ttt-ui-lgx/variants/linux-amd64/* "$BASECAMP_DIR/plugins/tictactoe_ui/"
+cp /tmp/ttt-ui-lgx/manifest.json "$BASECAMP_DIR/plugins/tictactoe_ui/"
+echo "linux-amd64" > "$BASECAMP_DIR/plugins/tictactoe_ui/variant"
 ```
 
 ## Build from source
 
 Requires [Nix](https://nixos.org/download.html) with flakes enabled.
 
+### Core module
+
 ```bash
+cd tictactoe
 nix build
 ```
 
-Output: `result/lib/tictactoe_plugin.so` and `result/lib/libtictactoe.so`.
+Output: `tictactoe/result/lib/tictactoe_plugin.so` and `tictactoe/result/lib/libtictactoe.so`.
+
+### UI module
+
+```bash
+cd tictactoe-ui
+nix build --override-input tictactoe path:../tictactoe
+```
+
+Output: `tictactoe-ui/result/lib/tictactoe_ui_plugin.so`.
 
 ### Generate LGX
 
 ```bash
-# Local LGX (for nix-built logoscore / logos-basecamp dev builds)
-nix build '.#lgx'
+# Core module
+cd tictactoe
+nix build '.#lgx-portable' --out-link result-lgx-portable
 
-# Portable LGX (for AppImage / standalone builds)
-nix build '.#lgx-portable'
+# UI module
+cd tictactoe-ui
+nix build '.#lgx-portable' --override-input tictactoe path:../tictactoe --out-link result-lgx-portable
 ```
+
+Replace `.#lgx-portable` with `.#lgx` for dev (nix-built) basecamp builds.
 
 ### Inspect
 
-Requires the lib build output (not the lgx). Run `nix build` first:
-
 ```bash
+cd tictactoe
 nix build
 nix build 'github:logos-co/logos-module#lm' --out-link ./lm
 ./lm/bin/lm metadata result/lib/tictactoe_plugin.so
@@ -64,6 +102,7 @@ nix build 'github:logos-co/logos-module#lm' --out-link ./lm
 ## Test with logoscore
 
 ```bash
+cd tictactoe
 nix build 'github:logos-co/logos-logoscore-cli/tutorial-v1' --out-link ./logos
 nix build 'github:logos-co/logos-package-manager/tutorial-v1#cli' --out-link ./pm
 nix build '.#lgx'
@@ -81,26 +120,21 @@ mkdir -p modules
 
 ## Known Limitations
 
-- **"No methods available" in logos-basecamp:** The module loads successfully
+- **Dark theme contrast:** The UI widget uses explicit light-on-dark colors but
+  may not perfectly match basecamp's theme. X marks are blue (#4a9eff), O marks
+  are red (#ff6b6b).
+
+- **`.so` naming workaround:** Basecamp expects `<name>.so` but the
+  `logos_module()` CMake macro produces `<name>_plugin.so`. The UI `flake.nix`
+  includes a `postInstall` hook that creates a copy with the correct name, so
+  the lgx ships both `tictactoe_ui.so` and `tictactoe_ui_plugin.so`. The
+  duplicate will be removed once the upstream fix lands.
+  Tracked in logos-co/logos-basecamp#136.
+
+- **"No methods available" in logos-basecamp:** The core module loads
   (visible in the module list), but basecamp's "View Methods" UI shows no
-  methods. The methods are confirmed present via the `lm` inspector and
-  `logoscore call`:
-
-  ```bash
-  # Build the lib output (nix build '.#lgx' overwrites the result symlink,
-  # so re-run nix build or use --out-link to keep both):
-  nix build
-
-  # lm shows all 5 game methods + initLogos + eventResponse:
-  nix build 'github:logos-co/logos-module#lm' --out-link ./lm
-  ./lm/bin/lm methods result/lib/tictactoe_plugin.so
-
-  # logoscore can invoke them:
-  ./logos/bin/logoscore call tictactoe play 0 0   # returns {"result":0}
-  ./logos/bin/logoscore call tictactoe status      # returns {"result":1}
-  ```
-
-  This appears to be a basecamp UI issue with core (non-UI) modules.
+  methods. The methods are confirmed present via `lm` and `logoscore call`.
+  Tracked in logos-co/logos-basecamp#135.
 
 ## API Reference
 

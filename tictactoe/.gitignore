@@ -1,0 +1,11 @@
+# Compiled C library (built from source by CMake)
+lib/*.so
+lib/*.dylib
+lib/*.a
+
+# Nix build output
+result
+result-*
+
+# CMake build directory
+build/

@@ -19,14 +19,23 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      - name: Build portable LGX
-        run: nix build '.#lgx-portable' --out-link result-lgx-portable
+      - name: Build core portable LGX
+        run: cd tictactoe && nix build '.#lgx-portable' --out-link result-lgx-portable
 
-      - name: Upload LGX artifact
+      - name: Build UI portable LGX
+        run: cd tictactoe-ui && nix build '.#lgx-portable' --override-input tictactoe path:../tictactoe --out-link result-lgx-portable
+
+      - name: Upload core LGX artifact
         uses: actions/upload-artifact@v4
         with:
           name: logos-tictactoe-module-lib.lgx
-          path: result-lgx-portable/*.lgx
+          path: tictactoe/result-lgx-portable/*.lgx
+
+      - name: Upload UI LGX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: logos-tictactoe-ui-module-lib.lgx
+          path: tictactoe-ui/result-lgx-portable/*.lgx
 
   release:
     needs: build
@@ -38,6 +47,11 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: logos-tictactoe-module-lib.lgx
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: logos-tictactoe-ui-module-lib.lgx
           path: dist
 
       - name: Create release
