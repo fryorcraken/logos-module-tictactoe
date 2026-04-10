@@ -121,14 +121,15 @@ TicTacToeCell tictactoe_current_player(const TicTacToeGame* game)
 }
 
 /* ------------------------------------------------------------------ */
-/* Minimax AI                                                          */
+/* Minimax opponent                                                    */
 /* ------------------------------------------------------------------ */
 
 /* Score a terminal or leaf state from the perspective of `player`.
-   +10 for a win, -10 for a loss, 0 for draw or ongoing.             */
+   Depth-weighted: prefer fastest wins (+10-depth) and slowest losses
+   (-10+depth), so the opponent always takes the shortest path.       */
 static int minimax(TicTacToeCell board[9], int moves_made,
                    TicTacToeCell current, TicTacToeCell ai_player,
-                   int is_maximizing)
+                   int is_maximizing, int depth)
 {
     /* Check terminal states */
     int i;
@@ -137,7 +138,7 @@ static int minimax(TicTacToeCell board[9], int moves_made,
         TicTacToeCell b = board[WIN_LINES[i][1]];
         TicTacToeCell c = board[WIN_LINES[i][2]];
         if (a != TICTACTOE_CELL_EMPTY && a == b && b == c) {
-            return (a == ai_player) ? 10 : -10;
+            return (a == ai_player) ? (10 - depth) : (-10 + depth);
         }
     }
     if (moves_made == 9)
@@ -152,7 +153,7 @@ static int minimax(TicTacToeCell board[9], int moves_made,
         for (i = 0; i < 9; i++) {
             if (board[i] != TICTACTOE_CELL_EMPTY) continue;
             board[i] = current;
-            int score = minimax(board, moves_made + 1, next, ai_player, 0);
+            int score = minimax(board, moves_made + 1, next, ai_player, 0, depth + 1);
             board[i] = TICTACTOE_CELL_EMPTY;
             if (score > best) best = score;
         }
@@ -161,7 +162,7 @@ static int minimax(TicTacToeCell board[9], int moves_made,
         for (i = 0; i < 9; i++) {
             if (board[i] != TICTACTOE_CELL_EMPTY) continue;
             board[i] = current;
-            int score = minimax(board, moves_made + 1, next, ai_player, 1);
+            int score = minimax(board, moves_made + 1, next, ai_player, 1, depth + 1);
             board[i] = TICTACTOE_CELL_EMPTY;
             if (score < best) best = score;
         }
@@ -192,7 +193,7 @@ TicTacToeError tictactoe_ai_move(const TicTacToeGame* game,
     for (i = 0; i < 9; i++) {
         if (board[i] != TICTACTOE_CELL_EMPTY) continue;
         board[i] = ai;
-        int score = minimax(board, game->moves_made + 1, next, ai, 0);
+        int score = minimax(board, game->moves_made + 1, next, ai, 0, 1);
         board[i] = TICTACTOE_CELL_EMPTY;
         if (score > best_score) {
             best_score = score;

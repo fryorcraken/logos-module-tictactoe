@@ -8,6 +8,8 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QFont>
+#include <QTimer>
+#include <memory>
 
 // Cell values from libtictactoe
 static const int CELL_EMPTY = 0;
@@ -94,7 +96,7 @@ QWidget* TicTacToeUiPlugin::createWidget(LogosAPI* logosAPI)
         }
     }
 
-    // Mode toggle: 2 Players / vs AI
+    // Mode toggle: 2 Players / vs Computer
     auto* modeBtn = new QPushButton("Mode: 2 Players");
     QFont modeBtnFont = modeBtn->font();
     modeBtnFont.setPointSize(11);
@@ -102,8 +104,8 @@ QWidget* TicTacToeUiPlugin::createWidget(LogosAPI* logosAPI)
     modeBtn->setStyleSheet("QPushButton { background-color: #333; border: 1px solid #666; padding: 6px; }");
     root->addWidget(modeBtn);
 
-    // Track whether AI mode is on (shared via pointer for lambdas)
-    auto* aiMode = new bool(false);
+    // Track whether computer mode is on (shared_ptr for safe lambda capture)
+    auto aiMode = std::make_shared<bool>(false);
 
     // New Game button
     auto* newGameBtn = new QPushButton("New Game");
@@ -120,14 +122,14 @@ QWidget* TicTacToeUiPlugin::createWidget(LogosAPI* logosAPI)
         int cur = backend->currentPlayer();
         QString st = statusText(s, cur);
         if (*aiMode && s == STATUS_ONGOING)
-            st = (cur == CELL_X) ? "Your turn (X)" : "AI thinking...";
+            st = (cur == CELL_X) ? "Your turn (X)" : "Computer thinking...";
         statusLabel->setText(st);
 
         for (int r = 0; r < 3; r++) {
             for (int c = 0; c < 3; c++) {
                 int cell = backend->getCell(r, c);
                 cells[r][c]->setText(cellText(cell));
-                // In AI mode, disable cells during AI's turn
+                // In computer mode, disable cells during computer's turn
                 bool canClick = (cell == CELL_EMPTY && s == STATUS_ONGOING);
                 if (*aiMode && cur == CELL_O && s == STATUS_ONGOING)
                     canClick = false;
@@ -143,18 +145,21 @@ QWidget* TicTacToeUiPlugin::createWidget(LogosAPI* logosAPI)
         }
     };
 
-    // Wire cell clicks — in AI mode, auto-play O after human X
+    // Wire cell clicks — in computer mode, auto-play O after human X
     for (int r = 0; r < 3; r++) {
         for (int c = 0; c < 3; c++) {
             QObject::connect(cells[r][c], &QPushButton::clicked, [=]() {
                 backend->play(r, c);
                 refresh();
 
-                // If AI mode is on and the game continues, let AI play
+                // If computer mode is on and the game continues, delay so
+                // "Computer thinking..." is visible before the move lands
                 if (*aiMode && backend->status() == STATUS_ONGOING
                     && backend->currentPlayer() == CELL_O) {
-                    backend->aiMove();
-                    refresh();
+                    QTimer::singleShot(150, widget, [=]() {
+                        backend->aiMove();
+                        refresh();
+                    });
                 }
             });
         }
@@ -163,14 +168,16 @@ QWidget* TicTacToeUiPlugin::createWidget(LogosAPI* logosAPI)
     // Wire mode toggle — preserves current game state
     QObject::connect(modeBtn, &QPushButton::clicked, [=]() {
         *aiMode = !(*aiMode);
-        modeBtn->setText(*aiMode ? "Mode: vs AI" : "Mode: 2 Players");
+        modeBtn->setText(*aiMode ? "Mode: vs Computer" : "Mode: 2 Players");
         refresh();
 
-        // If switching to AI mode mid-game and it's O's turn, let AI play
+        // If switching to computer mode mid-game and it's O's turn, delay move
         if (*aiMode && backend->status() == STATUS_ONGOING
             && backend->currentPlayer() == CELL_O) {
-            backend->aiMove();
-            refresh();
+            QTimer::singleShot(150, widget, [=]() {
+                backend->aiMove();
+                refresh();
+            });
         }
     });
 
