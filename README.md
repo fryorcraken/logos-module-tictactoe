@@ -6,7 +6,7 @@ A tic-tac-toe Logos mini app. Contains a core module and two alternative UI fron
 - **tictactoe_ui** (C++ widget UI) — compiled C++ Qt widget frontend, calls the core module via the generated Logos SDK (Tutorial Part 3, Option B)
 - **tictactoe_ui_qml** (QML UI) — declarative QML frontend, calls the core module via the `logos.callModule()` bridge (Tutorial Part 2). No compilation needed.
 
-Both UIs are functionally identical — same 3x3 board, same X/O turns, same win/draw detection, same dark-theme styling. Choose whichever you prefer.
+Both UIs are functionally identical — same 3x3 board, same X/O turns, same win/draw detection. The QML UI is significantly simpler: 1 file / ~170 LOC vs 7 files / ~310 LOC for the C++ widget UI, with no compilation needed. The QML UI also uses the Logos Design System for consistent theming with basecamp.
 
 Built following the [Logos module tutorials](https://github.com/logos-co/logos-tutorial) (Part 1 + Part 2 + Part 3, Option B).
 
@@ -51,15 +51,10 @@ echo "linux-amd64" > "$BASECAMP_DIR/plugins/tictactoe_ui/variant"
 
 ### Standalone UI (no basecamp needed)
 
-Requires [Nix](https://nixos.org/download.html) with flakes enabled.
+Requires [Nix](https://nixos.org/download.html) with flakes enabled. Only the C++ widget UI supports standalone mode (the QML UI uses the Logos Design System which is only available inside basecamp).
 
 ```bash
-# C++ widget UI
 cd tictactoe-ui
-nix run . --override-input tictactoe path:../tictactoe
-
-# QML UI
-cd tictactoe-ui-qml
 nix run . --override-input tictactoe path:../tictactoe
 ```
 
