@@ -1,12 +1,10 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import Logos.Theme 1.0
-import Logos.Controls 1.0
 
 Rectangle {
     id: root
-    color: Theme.palette.background
+    color: "#1a1a1a"
 
     // Game state
     property var board: [0, 0, 0, 0, 0, 0, 0, 0, 0]  // 0=empty, 1=X, 2=O
@@ -19,20 +17,20 @@ Rectangle {
         spacing: 16
 
         // ── Title ──────────────────────────────────────────────
-        LogosText {
+        Text {
             text: "Tic-Tac-Toe"
             font.pixelSize: 20
             font.weight: Font.DemiBold
-            color: Theme.palette.text
+            color: "#e0e0e0"
             Layout.alignment: Qt.AlignHCenter
         }
 
         // ── Status ─────────────────────────────────────────────
-        LogosText {
+        Text {
             id: statusLabel
             text: statusText()
             font.pixelSize: 14
-            color: Theme.palette.textMuted
+            color: "#e0e0e0"
             Layout.alignment: Qt.AlignHCenter
         }
 
@@ -46,7 +44,8 @@ Rectangle {
             Repeater {
                 model: 9
 
-                LogosButton {
+                Button {
+                    id: cellBtn
                     Layout.preferredWidth: 96
                     Layout.preferredHeight: 96
 
@@ -63,12 +62,19 @@ Rectangle {
                         callPlay(row, col)
                     }
 
+                    background: Rectangle {
+                        color: cellBtn.hovered && cellBtn.enabled ? "#3a3a3a" : "#2a2a2a"
+                        border.color: cellBtn.enabled ? "#555" : "#333"
+                        border.width: 1
+                        radius: 4
+                    }
+
                     contentItem: Text {
-                        text: parent.text
-                        font: parent.font
-                        color: parent.cellValue === 1 ? "#4a9eff"
-                             : parent.cellValue === 2 ? "#ff6b6b"
-                             : (parent.enabled ? Theme.palette.text : Theme.palette.textMuted)
+                        text: cellBtn.text
+                        font: cellBtn.font
+                        color: cellBtn.cellValue === 1 ? "#4a9eff"
+                             : cellBtn.cellValue === 2 ? "#ff6b6b"
+                             : (cellBtn.enabled ? "#e0e0e0" : "#666")
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
@@ -77,11 +83,28 @@ Rectangle {
         }
 
         // ── New Game button ────────────────────────────────────
-        LogosButton {
+        Button {
+            id: newGameBtn
             text: "New Game"
             font.pixelSize: 12
             Layout.fillWidth: true
+
             onClicked: callNewGame()
+
+            background: Rectangle {
+                color: newGameBtn.hovered ? "#3a3a3a" : "#2a2a2a"
+                border.color: "#555"
+                border.width: 1
+                radius: 4
+            }
+
+            contentItem: Text {
+                text: newGameBtn.text
+                font: newGameBtn.font
+                color: "#e0e0e0"
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
         }
 
         Item { Layout.fillHeight: true }
