@@ -7,16 +7,7 @@ A tic-tac-toe Logos mini app. Contains two modules:
 
 Built following the [Logos module tutorials](https://github.com/logos-co/logos-tutorial) (Part 1 + Part 3, Option B).
 
-## Standalone UI
-
-The quickest way to see the UI. Requires [Nix](https://nixos.org/download.html) with flakes enabled.
-
-```bash
-cd tictactoe-ui
-nix run . --override-input tictactoe path:../tictactoe
-```
-
-A standalone window opens with a 3x3 tic-tac-toe board. The core module is automatically bundled and loaded — full gameplay works (X/O turns, win/draw detection, new game).
+**Quick start:** grab the pre-built `.lgx` files from the [latest release](https://github.com/fryorcraken/logos-module-tictactoe/releases/latest) and install them in logos-basecamp — no compilation needed. See [Install into logos-basecamp](#install-into-logos-basecamp).
 
 ## Install into logos-basecamp
 
@@ -52,6 +43,17 @@ cp /tmp/ttt-ui-lgx/variants/linux-amd64/* "$BASECAMP_DIR/plugins/tictactoe_ui/"
 cp /tmp/ttt-ui-lgx/manifest.json "$BASECAMP_DIR/plugins/tictactoe_ui/"
 echo "linux-amd64" > "$BASECAMP_DIR/plugins/tictactoe_ui/variant"
 ```
+
+### Standalone UI (no basecamp needed)
+
+Requires [Nix](https://nixos.org/download.html) with flakes enabled.
+
+```bash
+cd tictactoe-ui
+nix run . --override-input tictactoe path:../tictactoe
+```
+
+A standalone window opens with a 3x3 tic-tac-toe board. Full gameplay works (X/O turns, win/draw detection, new game).
 
 ## Build from source
 
