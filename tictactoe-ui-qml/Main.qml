@@ -10,6 +10,7 @@ Rectangle {
     property var board: [0, 0, 0, 0, 0, 0, 0, 0, 0]  // 0=empty, 1=X, 2=O
     property int gameStatus: 0   // 0=ongoing, 1=X wins, 2=O wins, 3=draw
     property int currentPlayer: 1  // 1=X, 2=O
+    property var winLine: []  // indices of the 3 winning cells
 
     ColumnLayout {
         anchors.fill: parent
@@ -50,6 +51,7 @@ Rectangle {
                     Layout.preferredHeight: 96
 
                     property int cellValue: root.board[index]
+                    property bool isWinCell: root.winLine.indexOf(index) >= 0
 
                     text: cellValue === 1 ? "X" : (cellValue === 2 ? "O" : "")
                     font.pixelSize: 32
@@ -63,9 +65,11 @@ Rectangle {
                     }
 
                     background: Rectangle {
-                        color: cellBtn.hovered && cellBtn.enabled ? "#3a3a3a" : "#2a2a2a"
-                        border.color: cellBtn.enabled ? "#555" : "#333"
-                        border.width: 1
+                        color: cellBtn.isWinCell ? "#1a3a1a"
+                             : cellBtn.hovered && cellBtn.enabled ? "#3a3a3a" : "#2a2a2a"
+                        border.color: cellBtn.isWinCell ? "#4aff4a"
+                                    : cellBtn.enabled ? "#555" : "#333"
+                        border.width: cellBtn.isWinCell ? 2 : 1
                         radius: 4
                     }
 
@@ -140,6 +144,23 @@ Rectangle {
         root.board = newBoard
         root.gameStatus = callModule("status", [])
         root.currentPlayer = callModule("currentPlayer", [])
+        root.winLine = (root.gameStatus === 1 || root.gameStatus === 2) ? findWinLine() : []
+    }
+
+    function findWinLine() {
+        var lines = [
+            [0,1,2], [3,4,5], [6,7,8],  // rows
+            [0,3,6], [1,4,7], [2,5,8],  // cols
+            [0,4,8], [2,4,6]            // diagonals
+        ]
+        for (var i = 0; i < lines.length; i++) {
+            var a = root.board[lines[i][0]]
+            var b = root.board[lines[i][1]]
+            var c = root.board[lines[i][2]]
+            if (a !== 0 && a === b && b === c)
+                return lines[i]
+        }
+        return []
     }
 
     function statusText() {
