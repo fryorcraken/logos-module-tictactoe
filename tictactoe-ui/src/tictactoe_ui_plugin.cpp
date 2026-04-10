@@ -157,8 +157,12 @@ QWidget* TicTacToeUiPlugin::createWidget(LogosAPI* logosAPI)
                 if (*aiMode && backend->status() == STATUS_ONGOING
                     && backend->currentPlayer() == CELL_O) {
                     QTimer::singleShot(150, widget, [=]() {
-                        backend->aiMove();
-                        refresh();
+                        // Guard: user may have toggled mode or reset during delay
+                        if (*aiMode && backend->status() == STATUS_ONGOING
+                            && backend->currentPlayer() == CELL_O) {
+                            backend->aiMove();
+                            refresh();
+                        }
                     });
                 }
             });
@@ -175,8 +179,11 @@ QWidget* TicTacToeUiPlugin::createWidget(LogosAPI* logosAPI)
         if (*aiMode && backend->status() == STATUS_ONGOING
             && backend->currentPlayer() == CELL_O) {
             QTimer::singleShot(150, widget, [=]() {
-                backend->aiMove();
-                refresh();
+                if (*aiMode && backend->status() == STATUS_ONGOING
+                    && backend->currentPlayer() == CELL_O) {
+                    backend->aiMove();
+                    refresh();
+                }
             });
         }
     });
