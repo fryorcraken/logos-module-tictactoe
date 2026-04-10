@@ -8,7 +8,7 @@ else()
 endif()
 
 logos_module(
-    NAME tictactoe_ui
+    NAME tictactoe_ui_cpp
     SOURCES
         src/tictactoe_ui_interface.h
         src/tictactoe_ui_plugin.h
@@ -20,5 +20,5 @@ logos_module(
 )
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
-target_link_libraries(tictactoe_ui_module_plugin PRIVATE Qt6::Widgets)
+target_link_libraries(tictactoe_ui_cpp_module_plugin PRIVATE Qt6::Widgets)
 

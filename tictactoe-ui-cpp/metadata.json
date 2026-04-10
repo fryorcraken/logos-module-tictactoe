@@ -1,10 +1,10 @@
 {
-  "name": "tictactoe_ui",
+  "name": "tictactoe_ui_cpp",
   "version": "1.0.0",
   "type": "ui",
   "category": "games",
-  "description": "Tic-tac-toe UI — widget frontend for tictactoe module",
-  "main": "tictactoe_ui_plugin",
+  "description": "Tic-tac-toe C++ UI — widget frontend for tictactoe module",
+  "main": "tictactoe_ui_cpp_plugin",
   "icon": "icons/tictactoe.png",
   "dependencies": ["tictactoe"],
 

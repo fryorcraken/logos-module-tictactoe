@@ -6,8 +6,4 @@ result-*
 build/
 
 # Nix tool symlinks
-lm
-lm-cli
-logos
-pm
-modules/
+tools/

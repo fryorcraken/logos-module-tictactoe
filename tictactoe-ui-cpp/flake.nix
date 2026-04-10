@@ -14,7 +14,7 @@
       # Basecamp expects <name>.so but the build produces <name>_plugin.so.
       # Create a copy without the _plugin suffix (logos-co/logos-basecamp#136).
       postInstall = ''
-        cp $out/lib/tictactoe_ui_plugin.so $out/lib/tictactoe_ui.so
+        cp $out/lib/tictactoe_ui_cpp_plugin.so $out/lib/tictactoe_ui_cpp.so
       '';
     };
 }

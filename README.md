@@ -21,7 +21,7 @@ Download the `.lgx` files from the [latest release](https://github.com/fryorcrak
 1. Open **logos-basecamp**
 2. Go to **modules** → **install LGX Package** and select `logos-tictactoe-module-lib.lgx` (core module)
 3. Go to **modules** → **install LGX Package** again and select **one** of (both provide the same gameplay):
-   - `logos-tictactoe_ui-module-lib.lgx` — C++ widget UI
+   - `logos-tictactoe_ui_cpp-module-lib.lgx` — C++ widget UI
    - `logos-tictactoe_ui_qml-module-lib.lgx` — QML UI
 
 The tic-tac-toe UI tab appears in the sidebar.
@@ -42,11 +42,11 @@ cp /tmp/ttt-lgx/manifest.json "$BASECAMP_DIR/modules/tictactoe/"
 echo "linux-amd64" > "$BASECAMP_DIR/modules/tictactoe/variant"
 
 # UI module
-mkdir -p "$BASECAMP_DIR/plugins/tictactoe_ui" /tmp/ttt-ui-lgx
-tar xzf logos-tictactoe_ui-module-lib.lgx -C /tmp/ttt-ui-lgx
-cp /tmp/ttt-ui-lgx/variants/linux-amd64/* "$BASECAMP_DIR/plugins/tictactoe_ui/"
-cp /tmp/ttt-ui-lgx/manifest.json "$BASECAMP_DIR/plugins/tictactoe_ui/"
-echo "linux-amd64" > "$BASECAMP_DIR/plugins/tictactoe_ui/variant"
+mkdir -p "$BASECAMP_DIR/plugins/tictactoe_ui_cpp" /tmp/ttt-ui-lgx
+tar xzf logos-tictactoe_ui_cpp-module-lib.lgx -C /tmp/ttt-ui-lgx
+cp /tmp/ttt-ui-lgx/variants/linux-amd64/* "$BASECAMP_DIR/plugins/tictactoe_ui_cpp/"
+cp /tmp/ttt-ui-lgx/manifest.json "$BASECAMP_DIR/plugins/tictactoe_ui_cpp/"
+echo "linux-amd64" > "$BASECAMP_DIR/plugins/tictactoe_ui_cpp/variant"
 ```
 
 ### Standalone UI (no basecamp needed)
@@ -55,7 +55,7 @@ Requires [Nix](https://nixos.org/download.html) with flakes enabled. Both UIs su
 
 ```bash
 # C++ widget UI
-cd tictactoe-ui
+cd tictactoe-ui-cpp
 nix run . --override-input tictactoe path:../tictactoe
 
 # QML UI
@@ -81,11 +81,11 @@ Output: `tictactoe/result/lib/tictactoe_plugin.so` and `tictactoe/result/lib/lib
 ### UI module (C++ widget)
 
 ```bash
-cd tictactoe-ui
+cd tictactoe-ui-cpp
 nix build --override-input tictactoe path:../tictactoe
 ```
 
-Output: `tictactoe-ui/result/lib/tictactoe_ui_plugin.so`.
+Output: `tictactoe-ui-cpp/result/lib/tictactoe_ui_plugin.so`.
 
 ### UI module (QML)
 
@@ -104,7 +104,7 @@ cd tictactoe
 nix build '.#lgx-portable' --out-link result-lgx-portable
 
 # UI module (C++ widget)
-cd tictactoe-ui
+cd tictactoe-ui-cpp
 nix build '.#lgx-portable' --override-input tictactoe path:../tictactoe --out-link result-lgx-portable
 
 # UI module (QML)
@@ -119,29 +119,55 @@ Replace `.#lgx-portable` with `.#lgx` for dev (nix-built) basecamp builds.
 ```bash
 cd tictactoe
 nix build
-nix build 'github:logos-co/logos-module#lm' --out-link ./lm
-./lm/bin/lm metadata result/lib/tictactoe_plugin.so
-./lm/bin/lm methods  result/lib/tictactoe_plugin.so
+nix build 'github:logos-co/logos-module#lm' --out-link ../tools/lm
+../tools/lm/bin/lm metadata result/lib/tictactoe_plugin.so
+../tools/lm/bin/lm methods  result/lib/tictactoe_plugin.so
 ```
 
 ## Test with logoscore
 
 ```bash
 cd tictactoe
-nix build 'github:logos-co/logos-logoscore-cli/tutorial-v1' --out-link ./logos
-nix build 'github:logos-co/logos-package-manager/tutorial-v1#cli' --out-link ./pm
+nix build 'github:logos-co/logos-logoscore-cli/tutorial-v1' --out-link ../tools/logos
+nix build 'github:logos-co/logos-package-manager/tutorial-v1#cli' --out-link ../tools/pm
 nix build '.#lgx'
-mkdir -p modules
-./pm/bin/lgpm --modules-dir ./modules install --file result/*.lgx
+mkdir -p ../tools/modules
+../tools/pm/bin/lgpm --modules-dir ../tools/modules install --file result/*.lgx
 
-./logos/bin/logoscore -D -m ./modules &
-./logos/bin/logoscore load-module tictactoe
-./logos/bin/logoscore call tictactoe newGame
-./logos/bin/logoscore call tictactoe play 0 0    # X plays top-left
-./logos/bin/logoscore call tictactoe play 1 1    # O plays center
-./logos/bin/logoscore call tictactoe status       # 0=ongoing, 1=X wins, 2=O wins, 3=draw
-./logos/bin/logoscore stop
+../tools/logos/bin/logoscore -D -m ../tools/modules &
+../tools/logos/bin/logoscore load-module tictactoe
+../tools/logos/bin/logoscore call tictactoe newGame
+../tools/logos/bin/logoscore call tictactoe play 0 0    # X plays top-left
+../tools/logos/bin/logoscore call tictactoe play 1 1    # O plays center
+../tools/logos/bin/logoscore call tictactoe status       # 0=ongoing, 1=X wins, 2=O wins, 3=draw
+../tools/logos/bin/logoscore stop
 ```
+
+## Reset basecamp state
+
+If basecamp is behaving unexpectedly (stale modules, UI not loading, frozen plugins), kill all processes and clean the installed modules:
+
+```bash
+# Kill basecamp and all its child processes
+pkill -9 -f 'logos_host|logos-basecamp|\.logos_host\.elf'
+
+# Remove installed tictactoe modules
+BASECAMP_DIR="$HOME/.local/share/Logos/LogosBasecamp"  # Linux
+# BASECAMP_DIR="$HOME/Library/Application Support/Logos/LogosBasecamp"  # macOS
+rm -rf "$BASECAMP_DIR/modules/tictactoe"
+rm -rf "$BASECAMP_DIR/plugins/tictactoe_ui_cpp"
+rm -rf "$BASECAMP_DIR/plugins/tictactoe_ui_cpp_qml"
+```
+
+Then relaunch basecamp and reinstall the `.lgx` files.
+
+For a full reset (removes all custom modules, not just tictactoe):
+
+```bash
+rm -rf "$BASECAMP_DIR"
+```
+
+Basecamp will re-preinstall its bundled modules on next launch.
 
 ## Known Limitations
 

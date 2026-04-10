@@ -17,7 +17,7 @@ public:
     explicit TicTacToeUiPlugin(QObject* parent = nullptr);
     ~TicTacToeUiPlugin() override;
 
-    QString name()    const override { return "tictactoe_ui"; }
+    QString name()    const override { return "tictactoe_ui_cpp"; }
     QString version() const override { return "1.0.0"; }
 
     Q_INVOKABLE void initLogos(LogosAPI* api);

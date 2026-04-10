@@ -23,7 +23,7 @@ jobs:
         run: cd tictactoe && nix build '.#lgx-portable' --out-link result-lgx-portable
 
       - name: Build UI portable LGX
-        run: cd tictactoe-ui && nix build '.#lgx-portable' --override-input tictactoe path:../tictactoe --out-link result-lgx-portable
+        run: cd tictactoe-ui-cpp && nix build '.#lgx-portable' --override-input tictactoe path:../tictactoe --out-link result-lgx-portable
 
       - name: Build QML UI portable LGX
         run: cd tictactoe-ui-qml && nix build '.#lgx-portable' --override-input tictactoe path:../tictactoe --out-link result-lgx-portable
@@ -37,8 +37,8 @@ jobs:
       - name: Upload UI LGX artifact
         uses: actions/upload-artifact@v4
         with:
-          name: logos-tictactoe-ui-module-lib.lgx
-          path: tictactoe-ui/result-lgx-portable/*.lgx
+          name: logos-tictactoe-ui-cpp-module-lib.lgx
+          path: tictactoe-ui-cpp/result-lgx-portable/*.lgx
 
       - name: Upload QML UI LGX artifact
         uses: actions/upload-artifact@v4
@@ -60,7 +60,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: logos-tictactoe-ui-module-lib.lgx
+          name: logos-tictactoe-ui-cpp-module-lib.lgx
           path: dist
 
       - uses: actions/download-artifact@v4
