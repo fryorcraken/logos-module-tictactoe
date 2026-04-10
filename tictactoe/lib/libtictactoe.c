@@ -119,3 +119,91 @@ TicTacToeCell tictactoe_current_player(const TicTacToeGame* game)
         return TICTACTOE_CELL_X;
     return game->current;
 }
+
+/* ------------------------------------------------------------------ */
+/* Minimax AI                                                          */
+/* ------------------------------------------------------------------ */
+
+/* Score a terminal or leaf state from the perspective of `player`.
+   +10 for a win, -10 for a loss, 0 for draw or ongoing.             */
+static int minimax(TicTacToeCell board[9], int moves_made,
+                   TicTacToeCell current, TicTacToeCell ai_player,
+                   int is_maximizing)
+{
+    /* Check terminal states */
+    int i;
+    for (i = 0; i < 8; i++) {
+        TicTacToeCell a = board[WIN_LINES[i][0]];
+        TicTacToeCell b = board[WIN_LINES[i][1]];
+        TicTacToeCell c = board[WIN_LINES[i][2]];
+        if (a != TICTACTOE_CELL_EMPTY && a == b && b == c) {
+            return (a == ai_player) ? 10 : -10;
+        }
+    }
+    if (moves_made == 9)
+        return 0; /* draw */
+
+    TicTacToeCell next = (current == TICTACTOE_CELL_X)
+                             ? TICTACTOE_CELL_O
+                             : TICTACTOE_CELL_X;
+    int best;
+    if (is_maximizing) {
+        best = -100;
+        for (i = 0; i < 9; i++) {
+            if (board[i] != TICTACTOE_CELL_EMPTY) continue;
+            board[i] = current;
+            int score = minimax(board, moves_made + 1, next, ai_player, 0);
+            board[i] = TICTACTOE_CELL_EMPTY;
+            if (score > best) best = score;
+        }
+    } else {
+        best = 100;
+        for (i = 0; i < 9; i++) {
+            if (board[i] != TICTACTOE_CELL_EMPTY) continue;
+            board[i] = current;
+            int score = minimax(board, moves_made + 1, next, ai_player, 1);
+            board[i] = TICTACTOE_CELL_EMPTY;
+            if (score < best) best = score;
+        }
+    }
+    return best;
+}
+
+TicTacToeError tictactoe_ai_move(const TicTacToeGame* game,
+                                  int* out_row, int* out_col)
+{
+    if (!game)
+        return TICTACTOE_ERR_NULL_GAME;
+    if (game->status != TICTACTOE_STATUS_ONGOING)
+        return TICTACTOE_ERR_GAME_OVER;
+
+    /* Work on a copy of the board so we don't mutate the game. */
+    TicTacToeCell board[9];
+    memcpy(board, game->board, sizeof(board));
+
+    TicTacToeCell ai = game->current;
+    TicTacToeCell next = (ai == TICTACTOE_CELL_X)
+                             ? TICTACTOE_CELL_O
+                             : TICTACTOE_CELL_X;
+    int best_score = -100;
+    int best_idx = -1;
+    int i;
+
+    for (i = 0; i < 9; i++) {
+        if (board[i] != TICTACTOE_CELL_EMPTY) continue;
+        board[i] = ai;
+        int score = minimax(board, game->moves_made + 1, next, ai, 0);
+        board[i] = TICTACTOE_CELL_EMPTY;
+        if (score > best_score) {
+            best_score = score;
+            best_idx = i;
+        }
+    }
+
+    if (best_idx < 0)
+        return TICTACTOE_ERR_GAME_OVER; /* no empty cells (shouldn't happen) */
+
+    *out_row = best_idx / 3;
+    *out_col = best_idx % 3;
+    return TICTACTOE_OK;
+}

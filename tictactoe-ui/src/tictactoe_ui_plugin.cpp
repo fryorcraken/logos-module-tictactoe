@@ -94,6 +94,17 @@ QWidget* TicTacToeUiPlugin::createWidget(LogosAPI* logosAPI)
         }
     }
 
+    // Mode toggle: 2 Players / vs AI
+    auto* modeBtn = new QPushButton("Mode: 2 Players");
+    QFont modeBtnFont = modeBtn->font();
+    modeBtnFont.setPointSize(11);
+    modeBtn->setFont(modeBtnFont);
+    modeBtn->setStyleSheet("QPushButton { background-color: #333; border: 1px solid #666; padding: 6px; }");
+    root->addWidget(modeBtn);
+
+    // Track whether AI mode is on (shared via pointer for lambdas)
+    auto* aiMode = new bool(false);
+
     // New Game button
     auto* newGameBtn = new QPushButton("New Game");
     QFont btnFont = newGameBtn->font();
@@ -107,13 +118,20 @@ QWidget* TicTacToeUiPlugin::createWidget(LogosAPI* logosAPI)
     auto refresh = [=]() {
         int s = backend->status();
         int cur = backend->currentPlayer();
-        statusLabel->setText(statusText(s, cur));
+        QString st = statusText(s, cur);
+        if (*aiMode && s == STATUS_ONGOING)
+            st = (cur == CELL_X) ? "Your turn (X)" : "AI thinking...";
+        statusLabel->setText(st);
 
         for (int r = 0; r < 3; r++) {
             for (int c = 0; c < 3; c++) {
                 int cell = backend->getCell(r, c);
                 cells[r][c]->setText(cellText(cell));
-                cells[r][c]->setEnabled(cell == CELL_EMPTY && s == STATUS_ONGOING);
+                // In AI mode, disable cells during AI's turn
+                bool canClick = (cell == CELL_EMPTY && s == STATUS_ONGOING);
+                if (*aiMode && cur == CELL_O && s == STATUS_ONGOING)
+                    canClick = false;
+                cells[r][c]->setEnabled(canClick);
 
                 if (cell == CELL_X)
                     cells[r][c]->setStyleSheet("color: #4a9eff; font-weight: bold; background-color: #2a2a2a; border: 1px solid #555;");
@@ -125,15 +143,36 @@ QWidget* TicTacToeUiPlugin::createWidget(LogosAPI* logosAPI)
         }
     };
 
-    // Wire cell clicks
+    // Wire cell clicks — in AI mode, auto-play O after human X
     for (int r = 0; r < 3; r++) {
         for (int c = 0; c < 3; c++) {
             QObject::connect(cells[r][c], &QPushButton::clicked, [=]() {
                 backend->play(r, c);
                 refresh();
+
+                // If AI mode is on and the game continues, let AI play
+                if (*aiMode && backend->status() == STATUS_ONGOING
+                    && backend->currentPlayer() == CELL_O) {
+                    backend->aiMove();
+                    refresh();
+                }
             });
         }
     }
+
+    // Wire mode toggle — preserves current game state
+    QObject::connect(modeBtn, &QPushButton::clicked, [=]() {
+        *aiMode = !(*aiMode);
+        modeBtn->setText(*aiMode ? "Mode: vs AI" : "Mode: 2 Players");
+        refresh();
+
+        // If switching to AI mode mid-game and it's O's turn, let AI play
+        if (*aiMode && backend->status() == STATUS_ONGOING
+            && backend->currentPlayer() == CELL_O) {
+            backend->aiMove();
+            refresh();
+        }
+    });
 
     // Wire new game button
     QObject::connect(newGameBtn, &QPushButton::clicked, [=]() {
