@@ -10,18 +10,19 @@ else()
     message(FATAL_ERROR "LogosModule.cmake not found")
 endif()
 
-# Build libtictactoe from source — no pre-built binary needs to be committed
+# Build libtictactoe from source — no pre-built .so needs to be committed.
+# Output to ${CMAKE_BINARY_DIR}/lib so the Nix install phase picks it up.
 add_library(tictactoe SHARED lib/libtictactoe.c)
 target_include_directories(tictactoe PUBLIC lib)
 set_target_properties(tictactoe PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/modules"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
     INSTALL_RPATH "$ORIGIN"
 )
 install(TARGETS tictactoe
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/logos/modules
 )
 
-# Define the module, linking against the tictactoe target above
+# Define the module, linking against the tictactoe CMake target
 logos_module(
     NAME tictactoe
     SOURCES

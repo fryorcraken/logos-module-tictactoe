@@ -1,4 +1,4 @@
-# Vendored C library binaries (build locally via nix, do not commit)
+# Compiled C library (built from source by CMake)
 lib/*.so
 lib/*.dylib
 lib/*.a
