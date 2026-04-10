@@ -48,6 +48,16 @@ public:
      * @brief Return whose turn it is as a TicTacToeCell int (1=X, 2=O).
      */
     Q_INVOKABLE virtual int currentPlayer() = 0;
+
+    /**
+     * @brief Compute and play the best move for the current player (AI).
+     *
+     * Uses minimax to find the optimal cell, then plays it. The game
+     * advances to the next player's turn. Returns 0 on success.
+     *
+     * @return TicTacToeError as int (0 = success, 3 = game already over).
+     */
+    Q_INVOKABLE virtual int aiMove() = 0;
 };
 
 #define TicTacToeInterface_iid "org.logos.TicTacToeInterface"

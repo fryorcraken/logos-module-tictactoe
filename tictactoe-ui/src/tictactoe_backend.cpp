@@ -8,3 +8,4 @@ int  TicTacToeBackend::play(int row, int col) { return m_logos->tictactoe.play(r
 int  TicTacToeBackend::status()            { return m_logos->tictactoe.status(); }
 int  TicTacToeBackend::getCell(int row, int col) { return m_logos->tictactoe.getCell(row, col); }
 int  TicTacToeBackend::currentPlayer()     { return m_logos->tictactoe.currentPlayer(); }
+int  TicTacToeBackend::aiMove()            { return m_logos->tictactoe.aiMove(); }

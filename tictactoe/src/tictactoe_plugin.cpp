@@ -60,3 +60,13 @@ int TicTacToePlugin::currentPlayer()
 {
     return static_cast<int>(tictactoe_current_player(m_game));
 }
+
+int TicTacToePlugin::aiMove()
+{
+    int row, col;
+    TicTacToeError err = tictactoe_ai_move(m_game, &row, &col);
+    if (err != TICTACTOE_OK)
+        return static_cast<int>(err);
+
+    return play(row, col); // reuse play() which also emits eventResponse
+}

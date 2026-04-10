@@ -18,6 +18,7 @@ public:
     Q_INVOKABLE int  status();
     Q_INVOKABLE int  getCell(int row, int col);
     Q_INVOKABLE int  currentPlayer();
+    Q_INVOKABLE int  aiMove();
 
 private:
     LogosModules* m_logos;

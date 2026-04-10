@@ -102,6 +102,21 @@ TicTacToeCell tictactoe_get_cell(const TicTacToeGame* game, int row, int col);
  */
 TicTacToeCell tictactoe_current_player(const TicTacToeGame* game);
 
+/**
+ * Compute the best move for the current player using minimax.
+ * Tic-tac-toe is small enough for an exhaustive search with no
+ * depth limit; this always plays optimally.
+ *
+ * @param game       Game handle (must be ONGOING with at least one empty cell).
+ * @param out_row    Receives the best row [0, 2].
+ * @param out_col    Receives the best column [0, 2].
+ * @return           TICTACTOE_OK on success, TICTACTOE_ERR_GAME_OVER if the
+ *                   game has already ended, TICTACTOE_ERR_NULL_GAME if game
+ *                   is NULL.
+ */
+TicTacToeError tictactoe_ai_move(const TicTacToeGame* game,
+                                  int* out_row, int* out_col);
+
 #ifdef __cplusplus
 }
 #endif

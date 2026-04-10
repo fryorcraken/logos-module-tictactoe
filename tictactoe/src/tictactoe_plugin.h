@@ -27,6 +27,7 @@ public:
     Q_INVOKABLE int  status()            override;
     Q_INVOKABLE int  getCell(int row, int col) override;
     Q_INVOKABLE int  currentPlayer()     override;
+    Q_INVOKABLE int  aiMove()           override;
 
 signals:
     void eventResponse(const QString& eventName, const QVariantList& args);
