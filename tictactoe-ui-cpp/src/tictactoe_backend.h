@@ -2,9 +2,12 @@
 #define TICTACTOE_BACKEND_H
 
 #include <QObject>
+#include <QString>
 #include "logos_sdk.h"
 
 class LogosAPI;
+class LogosAPIClient;
+class LogosObject;
 
 class TicTacToeBackend : public QObject
 {
@@ -13,14 +16,41 @@ class TicTacToeBackend : public QObject
 public:
     explicit TicTacToeBackend(LogosAPI* api, QObject* parent = nullptr);
 
+    // Core game methods
     Q_INVOKABLE void newGame();
     Q_INVOKABLE int  play(int row, int col);
     Q_INVOKABLE int  status();
     Q_INVOKABLE int  getCell(int row, int col);
     Q_INVOKABLE int  currentPlayer();
 
+    // Multiplayer
+    Q_INVOKABLE void enableMultiplayer();
+    Q_INVOKABLE void disableMultiplayer();
+
+    bool multiplayerEnabled() const { return m_multiplayerEnabled; }
+    bool deliveryStarted() const { return m_deliveryStarted; }
+    int  messagesSent() const { return m_messagesSent; }
+    int  messagesReceived() const { return m_messagesReceived; }
+
+signals:
+    void multiplayerChanged();
+    void deliveryChanged();
+    void remoteMovePlayed();
+
 private:
+    void broadcastMove(int row, int col, int player);
+
     LogosModules* m_logos;
+    LogosAPI* m_logosAPI;
+    LogosAPIClient* m_deliveryClient = nullptr;
+    LogosObject* m_deliveryObject = nullptr;
+
+    // Multiplayer state
+    bool m_multiplayerEnabled = false;
+    bool m_deliveryStarted = false;
+    int  m_messagesSent = 0;
+    int  m_messagesReceived = 0;
+    QString m_contentTopic = "/tictactoe/1/moves/proto";
 };
 
 #endif // TICTACTOE_BACKEND_H
