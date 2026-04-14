@@ -14,7 +14,7 @@ Built following the [Logos module tutorials](https://github.com/logos-co/logos-t
 
 ## Install into logos-basecamp
 
-Tested with [logos-basecamp v0.1.1](https://github.com/nicholasgasior/logos-basecamp/releases/tag/v0.1.1) (AppImage).
+Tested with [logos-basecamp v0.1.1](https://github.com/logos-co/logos-basecamp/releases/tag/v0.1.1) (AppImage).
 
 Download the `.lgx` files from the [latest release](https://github.com/fryorcraken/logos-module-tictactoe/releases).
 
