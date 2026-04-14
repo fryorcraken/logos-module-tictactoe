@@ -54,6 +54,7 @@ For a full reset: `rm -rf "$BASECAMP_DIR"` — basecamp re-preinstalls bundled m
 - Basecamp expects `<name>.so` but CMake produces `<name>_plugin.so` — worked around with `postInstall` hook in flake.nix (logos-co/logos-basecamp#136)
 - Logos Design System (`import Logos.Theme 1.0`) is NOT available in portable AppImage v0.1.1 — use hardcoded colors instead
 - UI plugin icons not refreshed on reinstall without restart (logos-co/logos-basecamp#137)
+- **QML event support:** `LogosQmlBridge` exposes `logos.onModuleEvent(moduleName, eventName)` for subscribing to module events. Events arrive via `Connections { target: logos; function onModuleEventReceived(moduleName, eventName, data) }`. Both C++ UI and QML UI support multiplayer via delivery module.
 
 ## Releases
 

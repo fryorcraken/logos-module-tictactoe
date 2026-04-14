@@ -2727,14 +2727,16 @@
         "nix-bundle-lgx": "nix-bundle-lgx_4"
       },
       "locked": {
-        "lastModified": 1775803408,
-        "narHash": "sha256-rlucRpeMJXnKes0YG8DFDaQmMgsmhyP6yI8sTqR6fkE=",
+        "dir": "tictactoe",
+        "lastModified": 1775824982,
+        "narHash": "sha256-kl859PsIjFYwhpEfZ+G5phR/TLIzTPZhQiNbCZmcdS0=",
         "owner": "fryorcraken",
         "repo": "logos-module-tictactoe",
-        "rev": "5a2ec32aeadf83378eaef1b6acf6bc3f6f39b17c",
+        "rev": "0fddfd426e6fdfdac2e21926b0be5bf6091bd06d",
         "type": "github"
       },
       "original": {
+        "dir": "tictactoe",
         "owner": "fryorcraken",
         "repo": "logos-module-tictactoe",
         "type": "github"

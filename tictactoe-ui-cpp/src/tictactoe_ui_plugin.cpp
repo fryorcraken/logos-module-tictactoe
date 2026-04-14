@@ -48,7 +48,7 @@ QWidget* TicTacToeUiPlugin::createWidget(LogosAPI* logosAPI)
     auto* backend = new TicTacToeBackend(logosAPI);
 
     auto* widget = new QWidget();
-    widget->setMinimumSize(360, 440);
+    widget->setMinimumSize(360, 520);
     widget->setStyleSheet("QWidget { color: #e0e0e0; } "
                           "QPushButton { background-color: #2a2a2a; border: 1px solid #555; border-radius: 4px; color: #e0e0e0; } "
                           "QPushButton:hover { background-color: #3a3a3a; } "
@@ -101,6 +101,19 @@ QWidget* TicTacToeUiPlugin::createWidget(LogosAPI* logosAPI)
     newGameBtn->setFont(btnFont);
     root->addWidget(newGameBtn);
 
+    // ── Multiplayer section ──────────────────────────────────
+    auto* mpToggle = new QPushButton("Enable Multiplayer");
+    mpToggle->setFont(btnFont);
+    root->addWidget(mpToggle);
+
+    auto* mpStatus = new QLabel("Multiplayer: off");
+    mpStatus->setAlignment(Qt::AlignHCenter);
+    QFont mpFont = mpStatus->font();
+    mpFont.setPointSize(10);
+    mpStatus->setFont(mpFont);
+    mpStatus->setStyleSheet("color: #888;");
+    root->addWidget(mpStatus);
+
     root->addStretch();
 
     // Refresh all cells and status from backend state
@@ -125,12 +138,27 @@ QWidget* TicTacToeUiPlugin::createWidget(LogosAPI* logosAPI)
         }
     };
 
+    auto updateMpStatus = [=]() {
+        if (backend->multiplayerEnabled()) {
+            mpToggle->setText("Disable Multiplayer");
+            mpStatus->setText(QString("Delivery: running — sent: %1, received: %2")
+                .arg(backend->messagesSent())
+                .arg(backend->messagesReceived()));
+            mpStatus->setStyleSheet("color: #4aff4a;");
+        } else {
+            mpToggle->setText("Enable Multiplayer");
+            mpStatus->setText("Multiplayer: off");
+            mpStatus->setStyleSheet("color: #888;");
+        }
+    };
+
     // Wire cell clicks
     for (int r = 0; r < 3; r++) {
         for (int c = 0; c < 3; c++) {
             QObject::connect(cells[r][c], &QPushButton::clicked, [=]() {
                 backend->play(r, c);
                 refresh();
+                updateMpStatus();
             });
         }
     }
@@ -139,6 +167,28 @@ QWidget* TicTacToeUiPlugin::createWidget(LogosAPI* logosAPI)
     QObject::connect(newGameBtn, &QPushButton::clicked, [=]() {
         backend->newGame();
         refresh();
+        updateMpStatus();
+    });
+
+    // Wire multiplayer toggle
+    QObject::connect(mpToggle, &QPushButton::clicked, [=]() {
+        if (backend->multiplayerEnabled()) {
+            backend->disableMultiplayer();
+        } else {
+            backend->enableMultiplayer();
+        }
+        updateMpStatus();
+    });
+
+    // Wire remote move signal — refresh board when opponent plays
+    QObject::connect(backend, &TicTacToeBackend::remoteMovePlayed, [=]() {
+        refresh();
+        updateMpStatus();
+    });
+
+    // Wire delivery status changes
+    QObject::connect(backend, &TicTacToeBackend::deliveryChanged, [=]() {
+        updateMpStatus();
     });
 
     // Initial state
