@@ -4,7 +4,7 @@
   "description": "Tic-tac-toe QML UI — QML frontend for tictactoe module",
   "type": "ui_qml",
   "main": "Main.qml",
-  "dependencies": ["tictactoe"],
+  "dependencies": ["tictactoe", "delivery_module"],
   "category": "games",
   "icon": "icons/tictactoe.png",
 

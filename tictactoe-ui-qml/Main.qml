@@ -14,17 +14,23 @@ Rectangle {
 
     // Multiplayer state
     property bool multiplayerEnabled: false
-    property bool deliveryStarted: false
+    property bool deliveryConnected: false
     property int messagesSent: 0
     property int messagesReceived: 0
+    property string deliveryError: ""
     property string contentTopic: "/tictactoe/1/moves/json"
 
     // Subscribe to delivery module events for multiplayer
     Connections {
         target: typeof logos !== "undefined" ? logos : null
         function onModuleEventReceived(moduleName, eventName, data) {
-            if (moduleName === "delivery_module" && eventName === "messageReceived")
+            if (moduleName !== "delivery_module") return
+            if (eventName === "messageReceived")
                 handleDeliveryMessage(data)
+            else if (eventName === "connectionStateChanged")
+                root.deliveryConnected = data.length > 0 && data[0].length > 0
+            else if (eventName === "messageError")
+                root.deliveryError = data.length >= 3 ? data[2] : "send failed"
         }
     }
 
@@ -158,11 +164,12 @@ Rectangle {
         }
 
         Text {
-            text: root.multiplayerEnabled
-                  ? "Delivery: running — sent: " + root.messagesSent + ", received: " + root.messagesReceived
-                  : "Multiplayer: off"
+            text: deliveryStatusText()
             font.pixelSize: 10
-            color: root.multiplayerEnabled ? "#4aff4a" : "#888"
+            color: root.deliveryError.length > 0 ? "#ff6b6b"
+                 : root.deliveryConnected ? "#4aff4a"
+                 : root.multiplayerEnabled ? "#ffcc00"
+                 : "#888"
             Layout.alignment: Qt.AlignHCenter
         }
 
@@ -234,17 +241,31 @@ Rectangle {
         return root.currentPlayer === 1 ? "X's turn" : "O's turn"
     }
 
+    function deliveryStatusText() {
+        if (!root.multiplayerEnabled) return "Multiplayer: off"
+        if (root.deliveryError.length > 0)
+            return "Error: " + root.deliveryError
+        var state = root.deliveryConnected ? "connected" : "connecting..."
+        return "Delivery: " + state + " — sent: " + root.messagesSent + ", received: " + root.messagesReceived
+    }
+
     // ── Multiplayer ───────────────────────────────────────────
 
     function enableMultiplayer() {
         if (root.multiplayerEnabled) return
-        var config = '{"logLevel":"INFO","mode":"Core","preset":"logos.dev","relay":true}'
+        // 1. Create the delivery node
+        var config = '{"logLevel":"INFO","mode":"Core","preset":"logos.dev"}'
         callDelivery("createNode", [config])
-        callDelivery("start", [])
-        callDelivery("subscribe", [root.contentTopic])
-        if (typeof logos !== "undefined" && logos.onModuleEvent)
+        // 2. Register event handlers before start (per delivery module API docs)
+        if (typeof logos !== "undefined" && logos.onModuleEvent) {
             logos.onModuleEvent("delivery_module", "messageReceived")
-        root.deliveryStarted = true
+            logos.onModuleEvent("delivery_module", "connectionStateChanged")
+            logos.onModuleEvent("delivery_module", "messageError")
+        }
+        // 3. Start the node
+        callDelivery("start", [])
+        // 4. Subscribe to content topic
+        callDelivery("subscribe", [root.contentTopic])
         root.multiplayerEnabled = true
     }
 
@@ -252,14 +273,16 @@ Rectangle {
         if (!root.multiplayerEnabled) return
         callDelivery("unsubscribe", [root.contentTopic])
         callDelivery("stop", [])
-        root.deliveryStarted = false
+        root.deliveryConnected = false
         root.multiplayerEnabled = false
         root.messagesSent = 0
         root.messagesReceived = 0
+        root.deliveryError = ""
     }
 
     function broadcastMove(row, col, player) {
-        if (!root.multiplayerEnabled || !root.deliveryStarted) return
+        if (!root.multiplayerEnabled || !root.deliveryConnected) return
+        root.deliveryError = ""
         var msg = JSON.stringify({"t": "m", "r": row, "c": col, "p": player})
         var payload = Qt.btoa(msg)
         callDelivery("send", [root.contentTopic, payload])
@@ -267,7 +290,8 @@ Rectangle {
     }
 
     function broadcastNewGame() {
-        if (!root.multiplayerEnabled || !root.deliveryStarted) return
+        if (!root.multiplayerEnabled || !root.deliveryConnected) return
+        root.deliveryError = ""
         var msg = JSON.stringify({"t": "n"})
         var payload = Qt.btoa(msg)
         callDelivery("send", [root.contentTopic, payload])
