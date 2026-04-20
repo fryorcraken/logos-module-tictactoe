@@ -28,9 +28,10 @@ public:
     Q_INVOKABLE void disableMultiplayer();
 
     bool multiplayerEnabled() const { return m_multiplayerEnabled; }
-    bool deliveryStarted() const { return m_deliveryStarted; }
+    bool deliveryConnected() const { return m_deliveryConnected; }
     int  messagesSent() const { return m_messagesSent; }
     int  messagesReceived() const { return m_messagesReceived; }
+    QString deliveryError() const { return m_deliveryError; }
 
 signals:
     void multiplayerChanged();
@@ -47,9 +48,10 @@ private:
 
     // Multiplayer state
     bool m_multiplayerEnabled = false;
-    bool m_deliveryStarted = false;
+    bool m_deliveryConnected = false;
     int  m_messagesSent = 0;
     int  m_messagesReceived = 0;
+    QString m_deliveryError;
     QString m_contentTopic = "/tictactoe/1/moves/proto";
 };
 

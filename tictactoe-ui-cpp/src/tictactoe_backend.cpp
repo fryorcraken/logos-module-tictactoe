@@ -12,7 +12,8 @@ TicTacToeBackend::TicTacToeBackend(LogosAPI* api, QObject* parent)
 void TicTacToeBackend::newGame()
 {
     m_logos->tictactoe.newGame();
-    if (m_multiplayerEnabled && m_deliveryStarted) {
+    if (m_multiplayerEnabled && m_deliveryConnected) {
+        m_deliveryError.clear();
         tictactoe::GameMessage msg;
         msg.set_new_game(true);
         std::string serialized;
@@ -42,7 +43,8 @@ int  TicTacToeBackend::currentPlayer() { return m_logos->tictactoe.currentPlayer
 
 void TicTacToeBackend::broadcastMove(int row, int col, int player)
 {
-    if (!m_multiplayerEnabled || !m_deliveryStarted) return;
+    if (!m_multiplayerEnabled || !m_deliveryConnected) return;
+    m_deliveryError.clear();
 
     tictactoe::GameMessage msg;
     auto* move = msg.mutable_move();
@@ -73,24 +75,22 @@ void TicTacToeBackend::enableMultiplayer()
         return;
     }
 
-    QString config = R"({"logLevel":"INFO","mode":"Core","preset":"logos.dev","relay":true})";
+    // 1. Create the delivery node
+    QString config = R"({"logLevel":"INFO","mode":"Core","preset":"logos.dev"})";
     m_deliveryClient->invokeRemoteMethod("delivery_module", "createNode", config);
-    m_deliveryClient->invokeRemoteMethod("delivery_module", "start");
-    m_deliveryClient->invokeRemoteMethod("delivery_module", "subscribe", m_contentTopic);
 
-    // Get a LogosObject handle for event subscription
+    // 2. Register event handlers before start (per delivery module API docs)
     m_deliveryObject = m_deliveryClient->requestObject("delivery_module");
     if (!m_deliveryObject) {
         qWarning() << "TicTacToeBackend: failed to get delivery_module object for events";
     } else {
-        // Subscribe to incoming messages (same pattern as logos-chat-legacy-ui)
         m_deliveryClient->onEvent(m_deliveryObject, "messageReceived",
             [this](const QString& /*eventName*/, const QVariantList& data) {
                 if (data.size() < 3) {
                     qWarning() << "TicTacToeBackend: messageReceived payload too short";
                     return;
                 }
-                // data[2] is base64-encoded by delivery module; decode to get our base64 payload
+                // data[2] is the base64-encoded message payload (delivery module convention)
                 QByteArray deliveryPayload = QByteArray::fromBase64(data[2].toString().toUtf8());
                 // Decode our base64 layer to get raw protobuf bytes
                 QByteArray protoBytes = QByteArray::fromBase64(deliveryPayload);
@@ -118,9 +118,27 @@ void TicTacToeBackend::enableMultiplayer()
                     emit remoteMovePlayed();
                 }
             });
+
+        m_deliveryClient->onEvent(m_deliveryObject, "connectionStateChanged",
+            [this](const QString& /*eventName*/, const QVariantList& data) {
+                m_deliveryConnected = data.size() > 0 && !data[0].toString().isEmpty();
+                qDebug() << "TicTacToeBackend: connection state changed, connected:" << m_deliveryConnected;
+                emit deliveryChanged();
+            });
+
+        m_deliveryClient->onEvent(m_deliveryObject, "messageError",
+            [this](const QString& /*eventName*/, const QVariantList& data) {
+                m_deliveryError = data.size() >= 3 ? data[2].toString() : "send failed";
+                qWarning() << "TicTacToeBackend: message error:" << m_deliveryError;
+                emit deliveryChanged();
+            });
     }
 
-    m_deliveryStarted = true;
+    // 3. Start the node
+    m_deliveryClient->invokeRemoteMethod("delivery_module", "start");
+    // 4. Subscribe to content topic
+    m_deliveryClient->invokeRemoteMethod("delivery_module", "subscribe", m_contentTopic);
+
     m_multiplayerEnabled = true;
     emit multiplayerChanged();
     emit deliveryChanged();
@@ -136,10 +154,11 @@ void TicTacToeBackend::disableMultiplayer()
         m_deliveryClient->invokeRemoteMethod("delivery_module", "stop");
     }
     m_deliveryObject = nullptr;
-    m_deliveryStarted = false;
+    m_deliveryConnected = false;
     m_multiplayerEnabled = false;
     m_messagesSent = 0;
     m_messagesReceived = 0;
+    m_deliveryError.clear();
     emit multiplayerChanged();
     emit deliveryChanged();
     qDebug() << "TicTacToeBackend: multiplayer disabled";

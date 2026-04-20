@@ -141,10 +141,18 @@ QWidget* TicTacToeUiPlugin::createWidget(LogosAPI* logosAPI)
     auto updateMpStatus = [=]() {
         if (backend->multiplayerEnabled()) {
             mpToggle->setText("Disable Multiplayer");
-            mpStatus->setText(QString("Delivery: running — sent: %1, received: %2")
-                .arg(backend->messagesSent())
-                .arg(backend->messagesReceived()));
-            mpStatus->setStyleSheet("color: #4aff4a;");
+            if (!backend->deliveryError().isEmpty()) {
+                mpStatus->setText(QString("Error: %1").arg(backend->deliveryError()));
+                mpStatus->setStyleSheet("color: #ff6b6b;");
+            } else {
+                QString state = backend->deliveryConnected() ? "connected" : "connecting...";
+                mpStatus->setText(QString("Delivery: %1 — sent: %2, received: %3")
+                    .arg(state)
+                    .arg(backend->messagesSent())
+                    .arg(backend->messagesReceived()));
+                mpStatus->setStyleSheet(backend->deliveryConnected()
+                    ? "color: #4aff4a;" : "color: #ffcc00;");
+            }
         } else {
             mpToggle->setText("Enable Multiplayer");
             mpStatus->setText("Multiplayer: off");
