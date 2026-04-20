@@ -2,10 +2,14 @@
 #define TICTACTOE_PLUGIN_H
 
 #include <QObject>
+#include <QString>
 #include "tictactoe_interface.h"
 #include "logos_api.h"
 #include "logos_sdk.h"
 #include "lib/libtictactoe.h"
+
+class LogosAPIClient;
+class LogosObject;
 
 class TicTacToePlugin : public QObject, public TicTacToeInterface
 {
@@ -22,18 +26,41 @@ public:
 
     Q_INVOKABLE void initLogos(LogosAPI* logosAPIInstance);
 
-    Q_INVOKABLE void newGame()           override;
+    // Core game
+    Q_INVOKABLE void newGame()              override;
     Q_INVOKABLE int  play(int row, int col) override;
-    Q_INVOKABLE int  status()            override;
+    Q_INVOKABLE int  status()               override;
     Q_INVOKABLE int  getCell(int row, int col) override;
-    Q_INVOKABLE int  currentPlayer()     override;
+    Q_INVOKABLE int  currentPlayer()        override;
+
+    // Multiplayer
+    Q_INVOKABLE void enableMultiplayer()    override;
+    Q_INVOKABLE void disableMultiplayer()   override;
+    Q_INVOKABLE int  mpStatus()             override;
+    Q_INVOKABLE int  mpConnected()          override;
+    Q_INVOKABLE int  mpMessagesSent()       override;
+    Q_INVOKABLE int  mpMessagesReceived()   override;
+    Q_INVOKABLE QString mpError()           override;
 
 signals:
     void eventResponse(const QString& eventName, const QVariantList& args);
 
 private:
+    void broadcastMove(int row, int col, int player);
+    void broadcastNewGame();
+
     TicTacToeGame* m_game = nullptr;
     LogosModules*  logos  = nullptr;
+
+    // Delivery module state
+    LogosAPIClient* m_deliveryClient = nullptr;
+    LogosObject*    m_deliveryObject = nullptr;
+    bool    m_mpEnabled   = false;
+    bool    m_mpConnected = false;
+    int     m_msgSent     = 0;
+    int     m_msgReceived = 0;
+    QString m_mpError;
+    QString m_contentTopic = "/tictactoe/1/moves/proto";
 };
 
 #endif // TICTACTOE_PLUGIN_H

@@ -23,15 +23,15 @@ public:
     Q_INVOKABLE int  getCell(int row, int col);
     Q_INVOKABLE int  currentPlayer();
 
-    // Multiplayer
+    // Multiplayer — delegates to core module
     Q_INVOKABLE void enableMultiplayer();
     Q_INVOKABLE void disableMultiplayer();
 
     bool multiplayerEnabled() const { return m_multiplayerEnabled; }
-    bool deliveryConnected() const { return m_deliveryConnected; }
-    int  messagesSent() const { return m_messagesSent; }
-    int  messagesReceived() const { return m_messagesReceived; }
-    QString deliveryError() const { return m_deliveryError; }
+    bool deliveryConnected()  const { return m_deliveryConnected; }
+    int  messagesSent()       const { return m_messagesSent; }
+    int  messagesReceived()   const { return m_messagesReceived; }
+    QString deliveryError()   const { return m_deliveryError; }
 
 signals:
     void multiplayerChanged();
@@ -39,20 +39,19 @@ signals:
     void remoteMovePlayed();
 
 private:
-    void broadcastMove(int row, int col, int player);
+    void refreshMpState();
 
-    LogosModules* m_logos;
-    LogosAPI* m_logosAPI;
-    LogosAPIClient* m_deliveryClient = nullptr;
-    LogosObject* m_deliveryObject = nullptr;
+    LogosModules*   m_logos;
+    LogosAPI*       m_logosAPI;
+    LogosAPIClient* m_tttClient  = nullptr;
+    LogosObject*    m_tttObject  = nullptr;
 
-    // Multiplayer state
+    // Cached multiplayer state (from core module)
     bool m_multiplayerEnabled = false;
-    bool m_deliveryConnected = false;
-    int  m_messagesSent = 0;
-    int  m_messagesReceived = 0;
+    bool m_deliveryConnected  = false;
+    int  m_messagesSent       = 0;
+    int  m_messagesReceived   = 0;
     QString m_deliveryError;
-    QString m_contentTopic = "/tictactoe/1/moves/proto";
 };
 
 #endif // TICTACTOE_BACKEND_H

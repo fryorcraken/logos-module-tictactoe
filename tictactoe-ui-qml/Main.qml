@@ -12,25 +12,36 @@ Rectangle {
     property int currentPlayer: 1  // 1=X, 2=O
     property var winLine: []  // indices of the 3 winning cells
 
-    // Multiplayer state
+    // Multiplayer state (from core module events)
     property bool multiplayerEnabled: false
     property bool deliveryConnected: false
     property int messagesSent: 0
     property int messagesReceived: 0
     property string deliveryError: ""
-    property string contentTopic: "/tictactoe/1/moves/json"
 
-    // Subscribe to delivery module events for multiplayer
+    // Subscribe to tictactoe core module events
+    Component.onCompleted: {
+        if (typeof logos !== "undefined" && logos.onModuleEvent) {
+            logos.onModuleEvent("tictactoe", "remoteMove")
+            logos.onModuleEvent("tictactoe", "remoteNewGame")
+            logos.onModuleEvent("tictactoe", "mpStatusChanged")
+        }
+        callNewGame()
+    }
+
     Connections {
         target: typeof logos !== "undefined" ? logos : null
         function onModuleEventReceived(moduleName, eventName, data) {
-            if (moduleName !== "delivery_module") return
-            if (eventName === "messageReceived")
-                handleDeliveryMessage(data)
-            else if (eventName === "connectionStateChanged")
-                root.deliveryConnected = data.length > 0 && data[0].length > 0
-            else if (eventName === "messageError")
-                root.deliveryError = data.length >= 3 ? data[2] : "send failed"
+            if (moduleName !== "tictactoe") return
+            if (eventName === "remoteMove") {
+                refreshBoard()
+                refreshMpState()
+            } else if (eventName === "remoteNewGame") {
+                refreshBoard()
+                refreshMpState()
+            } else if (eventName === "mpStatusChanged") {
+                refreshMpState()
+            }
         }
     }
 
@@ -142,9 +153,10 @@ Rectangle {
 
             onClicked: {
                 if (root.multiplayerEnabled)
-                    disableMultiplayer()
+                    callModule("disableMultiplayer", [])
                 else
-                    enableMultiplayer()
+                    callModule("enableMultiplayer", [])
+                refreshMpState()
             }
 
             background: Rectangle {
@@ -176,6 +188,19 @@ Rectangle {
         Item { Layout.fillHeight: true }
     }
 
+    // ── Fallback poll timer ─────────────────────────────────────
+    // If logos.onModuleEvent is not available (older runtime), poll as fallback.
+    Timer {
+        id: mpPollTimer
+        interval: 2000
+        repeat: true
+        running: root.multiplayerEnabled && (typeof logos === "undefined" || !logos.onModuleEvent)
+        onTriggered: {
+            refreshMpState()
+            refreshBoard()
+        }
+    }
+
     // ── Logos bridge helpers ───────────────────────────────────
 
     function callModule(method, args) {
@@ -184,24 +209,16 @@ Rectangle {
         return logos.callModule("tictactoe", method, args)
     }
 
-    function callDelivery(method, args) {
-        if (typeof logos === "undefined" || !logos.callModule)
-            return -1
-        return logos.callModule("delivery_module", method, args)
-    }
-
     function callNewGame() {
         callModule("newGame", [])
-        broadcastNewGame()
         refreshBoard()
+        refreshMpState()
     }
 
     function callPlay(row, col) {
-        var player = root.currentPlayer
         var result = callModule("play", [row, col])
-        if (result === 0)
-            broadcastMove(row, col, player)
         refreshBoard()
+        refreshMpState()
     }
 
     function refreshBoard() {
@@ -216,6 +233,16 @@ Rectangle {
         root.gameStatus = callModule("status", [])
         root.currentPlayer = callModule("currentPlayer", [])
         root.winLine = (root.gameStatus === 1 || root.gameStatus === 2) ? findWinLine() : []
+    }
+
+    function refreshMpState() {
+        var status = callModule("mpStatus", [])
+        root.multiplayerEnabled = (status !== 0)
+        root.deliveryConnected = (status === 2)
+        root.messagesSent = callModule("mpMessagesSent", [])
+        root.messagesReceived = callModule("mpMessagesReceived", [])
+        var err = callModule("mpError", [])
+        root.deliveryError = (err && err !== -1) ? err : ""
     }
 
     function findWinLine() {
@@ -249,75 +276,4 @@ Rectangle {
         return "Delivery: " + state + " — sent: " + root.messagesSent + ", received: " + root.messagesReceived
     }
 
-    // ── Multiplayer ───────────────────────────────────────────
-
-    function enableMultiplayer() {
-        if (root.multiplayerEnabled) return
-        // 1. Create the delivery node
-        var config = '{"logLevel":"INFO","mode":"Core","preset":"logos.dev"}'
-        callDelivery("createNode", [config])
-        // 2. Register event handlers before start (per delivery module API docs)
-        if (typeof logos !== "undefined" && logos.onModuleEvent) {
-            logos.onModuleEvent("delivery_module", "messageReceived")
-            logos.onModuleEvent("delivery_module", "connectionStateChanged")
-            logos.onModuleEvent("delivery_module", "messageError")
-        }
-        // 3. Start the node
-        callDelivery("start", [])
-        // 4. Subscribe to content topic
-        callDelivery("subscribe", [root.contentTopic])
-        root.multiplayerEnabled = true
-    }
-
-    function disableMultiplayer() {
-        if (!root.multiplayerEnabled) return
-        callDelivery("unsubscribe", [root.contentTopic])
-        callDelivery("stop", [])
-        root.deliveryConnected = false
-        root.multiplayerEnabled = false
-        root.messagesSent = 0
-        root.messagesReceived = 0
-        root.deliveryError = ""
-    }
-
-    function broadcastMove(row, col, player) {
-        if (!root.multiplayerEnabled || !root.deliveryConnected) return
-        root.deliveryError = ""
-        var msg = JSON.stringify({"t": "m", "r": row, "c": col, "p": player})
-        var payload = Qt.btoa(msg)
-        callDelivery("send", [root.contentTopic, payload])
-        root.messagesSent++
-    }
-
-    function broadcastNewGame() {
-        if (!root.multiplayerEnabled || !root.deliveryConnected) return
-        root.deliveryError = ""
-        var msg = JSON.stringify({"t": "n"})
-        var payload = Qt.btoa(msg)
-        callDelivery("send", [root.contentTopic, payload])
-        root.messagesSent++
-    }
-
-    function handleDeliveryMessage(data) {
-        if (!root.multiplayerEnabled || data.length < 3) return
-        try {
-            // data[2] is the base64-encoded message payload (delivery module convention)
-            var deliveryPayload = Qt.atob(data[2])
-            var jsonStr = Qt.atob(deliveryPayload)
-            var msg = JSON.parse(jsonStr)
-            if (msg.t === "m") {
-                callModule("play", [msg.r, msg.c])
-                root.messagesReceived++
-                refreshBoard()
-            } else if (msg.t === "n") {
-                callModule("newGame", [])
-                root.messagesReceived++
-                refreshBoard()
-            }
-        } catch (e) {
-            // Ignore unparseable messages (e.g., protobuf from C++ UI)
-        }
-    }
-
-    Component.onCompleted: callNewGame()
 }

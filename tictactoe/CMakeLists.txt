@@ -22,6 +22,25 @@ install(TARGETS tictactoe
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/logos/modules
 )
 
+# Compile protobuf messages for multiplayer serialization
+find_package(Protobuf REQUIRED)
+set(PROTO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/proto)
+set(PROTO_GEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto_gen)
+file(MAKE_DIRECTORY ${PROTO_GEN_DIR})
+
+set(PROTO_SRC ${PROTO_GEN_DIR}/tictactoe.pb.cc)
+set(PROTO_HDR ${PROTO_GEN_DIR}/tictactoe.pb.h)
+
+add_custom_command(
+    OUTPUT ${PROTO_SRC} ${PROTO_HDR}
+    COMMAND protobuf::protoc
+        --cpp_out=${PROTO_GEN_DIR}
+        -I${PROTO_DIR}
+        ${PROTO_DIR}/tictactoe.proto
+    DEPENDS ${PROTO_DIR}/tictactoe.proto
+    COMMENT "Generating protobuf sources for tictactoe"
+)
+
 # Define the module, linking against the tictactoe CMake target
 logos_module(
     NAME tictactoe
@@ -29,6 +48,12 @@ logos_module(
         src/tictactoe_interface.h
         src/tictactoe_plugin.h
         src/tictactoe_plugin.cpp
+        ${PROTO_SRC}
+        ${PROTO_HDR}
     LINK_TARGETS
         tictactoe
+    INCLUDE_DIRS
+        ${PROTO_GEN_DIR}
 )
+
+target_link_libraries(tictactoe_module_plugin PRIVATE protobuf::libprotobuf)

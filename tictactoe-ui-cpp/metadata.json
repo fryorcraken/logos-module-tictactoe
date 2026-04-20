@@ -10,8 +10,8 @@
 
   "nix": {
     "packages": {
-      "build": ["protobuf"],
-      "runtime": ["protobuf"]
+      "build": [],
+      "runtime": []
     },
     "external_libraries": [],
     "cmake": {
