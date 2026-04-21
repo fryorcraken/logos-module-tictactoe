@@ -79,14 +79,17 @@ void TicTacToePlugin::enableMultiplayer()
     m_deliveryClient = logosAPI->getClient("delivery_module");
     if (!m_deliveryClient) {
         qWarning() << "TicTacToePlugin: failed to get delivery_module client";
-        m_mpError = "delivery_module not available";
-        emit eventResponse("mpStatusChanged", QVariantList() << 3);
+        setMpError("delivery_module not available");
         return;
     }
 
-    // 1. Create the delivery node
+    // 1. Create the delivery node. Bool-returning methods come back as a
+    // QVariant(bool); abort the whole enable flow if any step fails.
     QString config = R"({"logLevel":"INFO","mode":"Core","preset":"logos.dev"})";
-    m_deliveryClient->invokeRemoteMethod("delivery_module", "createNode", config);
+    if (!invokeBool("createNode", "delivery_module", "createNode", config)) {
+        teardownDelivery();
+        return;
+    }
 
     // 2. Register event handlers before start
     m_deliveryObject = m_deliveryClient->requestObject("delivery_module");
@@ -99,9 +102,10 @@ void TicTacToePlugin::enableMultiplayer()
                     qWarning() << "TicTacToePlugin: messageReceived payload too short";
                     return;
                 }
-                // data[2] is the base64-encoded message payload (delivery module convention)
+                // messageReceived delivers data[2] as base64. We encode our
+                // own payload as base64 before send(), so the full path is
+                // decode(delivery base64) → decode(our base64) → protobuf.
                 QByteArray deliveryPayload = QByteArray::fromBase64(data[2].toString().toUtf8());
-                // Decode our base64 layer to get raw protobuf bytes
                 QByteArray protoBytes = QByteArray::fromBase64(deliveryPayload);
 
                 tictactoe::GameMessage msg;
@@ -145,9 +149,17 @@ void TicTacToePlugin::enableMultiplayer()
     }
 
     // 3. Start the node
-    m_deliveryClient->invokeRemoteMethod("delivery_module", "start");
-    // 4. Subscribe to content topic
-    m_deliveryClient->invokeRemoteMethod("delivery_module", "subscribe", m_contentTopic);
+    if (!invokeBool("start", "delivery_module", "start")) {
+        teardownDelivery();
+        return;
+    }
+    // 4. Subscribe to content topic. If this fails we still have a running
+    // node, so stop it before bailing out.
+    if (!invokeBool("subscribe", "delivery_module", "subscribe", m_contentTopic)) {
+        m_deliveryClient->invokeRemoteMethod("delivery_module", "stop");
+        teardownDelivery();
+        return;
+    }
 
     m_mpEnabled = true;
     emit eventResponse("mpStatusChanged", QVariantList() << 1); // 1=connecting
@@ -159,8 +171,10 @@ void TicTacToePlugin::disableMultiplayer()
     if (!m_mpEnabled) return;
 
     if (m_deliveryClient) {
-        m_deliveryClient->invokeRemoteMethod("delivery_module", "unsubscribe", m_contentTopic);
-        m_deliveryClient->invokeRemoteMethod("delivery_module", "stop");
+        // Best-effort teardown: log failures but continue so the local state
+        // is reset regardless of what delivery_module reports.
+        invokeBool("unsubscribe", "delivery_module", "unsubscribe", m_contentTopic);
+        invokeBool("stop", "delivery_module", "stop");
     }
     m_deliveryObject = nullptr;
     m_mpConnected = false;
@@ -190,35 +204,79 @@ QString TicTacToePlugin::mpError()          { return m_mpError; }
 void TicTacToePlugin::broadcastMove(int row, int col, int player)
 {
     if (!m_mpEnabled || !m_mpConnected) return;
-    m_mpError.clear();
-
     tictactoe::GameMessage msg;
     auto* move = msg.mutable_move();
     move->set_row(row);
     move->set_col(col);
     move->set_player(player);
-
-    std::string serialized;
-    msg.SerializeToString(&serialized);
-    QString payload = QString::fromLatin1(
-        QByteArray(serialized.data(), serialized.size()).toBase64());
-    m_deliveryClient->invokeRemoteMethod(
-        "delivery_module", "send", m_contentTopic, payload);
-    m_msgSent++;
+    sendGameMessage(msg);
 }
 
 void TicTacToePlugin::broadcastNewGame()
 {
     if (!m_mpEnabled || !m_mpConnected) return;
-    m_mpError.clear();
-
     tictactoe::GameMessage msg;
     msg.set_new_game(true);
+    sendGameMessage(msg);
+}
+
+void TicTacToePlugin::sendGameMessage(const tictactoe::GameMessage& msg)
+{
+    m_mpError.clear();
+
     std::string serialized;
-    msg.SerializeToString(&serialized);
+    if (!msg.SerializeToString(&serialized)) {
+        qWarning() << "TicTacToePlugin: protobuf serialization failed";
+        setMpError("protobuf serialization failed");
+        return;
+    }
     QString payload = QString::fromLatin1(
         QByteArray(serialized.data(), serialized.size()).toBase64());
-    m_deliveryClient->invokeRemoteMethod(
+
+    // send() returns a LogosResult; via invokeRemoteMethod it comes back as
+    // a QVariant. A missing/invalid result means the RPC itself failed, not
+    // just the send — surface it via mpError and mpStatusChanged.
+    QVariant r = m_deliveryClient->invokeRemoteMethod(
         "delivery_module", "send", m_contentTopic, payload);
+    if (!r.isValid()) {
+        setMpError("delivery_module.send did not return a value");
+        return;
+    }
     m_msgSent++;
+}
+
+bool TicTacToePlugin::invokeBool(const char* what,
+                                 const QString& obj,
+                                 const QString& method,
+                                 const QVariant& arg)
+{
+    QVariant r = arg.isValid()
+                     ? m_deliveryClient->invokeRemoteMethod(obj, method, arg)
+                     : m_deliveryClient->invokeRemoteMethod(obj, method);
+    if (!r.isValid()) {
+        qWarning() << "TicTacToePlugin:" << what
+                   << "returned an invalid QVariant (RPC failed or timed out)";
+        setMpError(QStringLiteral("%1 failed: no response").arg(what));
+        return false;
+    }
+    if (!r.toBool()) {
+        qWarning() << "TicTacToePlugin:" << what
+                   << "returned false:" << r;
+        setMpError(QStringLiteral("%1 failed").arg(what));
+        return false;
+    }
+    return true;
+}
+
+void TicTacToePlugin::setMpError(const QString& err)
+{
+    m_mpError = err;
+    emit eventResponse("mpStatusChanged", QVariantList() << 3); // 3=error
+}
+
+void TicTacToePlugin::teardownDelivery()
+{
+    m_deliveryObject = nullptr;
+    m_mpEnabled = false;
+    m_mpConnected = false;
 }

@@ -10,6 +10,7 @@
 
 class LogosAPIClient;
 class LogosObject;
+namespace tictactoe { class GameMessage; }
 
 class TicTacToePlugin : public QObject, public TicTacToeInterface
 {
@@ -48,6 +49,17 @@ signals:
 private:
     void broadcastMove(int row, int col, int player);
     void broadcastNewGame();
+    void sendGameMessage(const tictactoe::GameMessage& msg);
+
+    // Invoke a bool-returning delivery_module method. Returns true iff the
+    // RPC succeeded AND the remote method returned true. Sets mpError on
+    // failure.
+    bool invokeBool(const char* what,
+                    const QString& obj,
+                    const QString& method,
+                    const QVariant& arg = QVariant());
+    void setMpError(const QString& err);
+    void teardownDelivery();
 
     TicTacToeGame* m_game = nullptr;
     LogosModules*  logos  = nullptr;

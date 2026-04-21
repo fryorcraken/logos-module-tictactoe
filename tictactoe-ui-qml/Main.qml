@@ -242,7 +242,7 @@ Rectangle {
         root.messagesSent = callModule("mpMessagesSent", [])
         root.messagesReceived = callModule("mpMessagesReceived", [])
         var err = callModule("mpError", [])
-        root.deliveryError = (err && err !== -1) ? err : ""
+        root.deliveryError = (typeof err === "string") ? err : ""
     }
 
     function findWinLine() {
