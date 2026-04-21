@@ -10,17 +10,12 @@ else()
     message(FATAL_ERROR "LogosModule.cmake not found")
 endif()
 
-# Build libtictactoe from source — no pre-built .so needs to be committed.
-# Output to ${CMAKE_BINARY_DIR}/lib so the Nix install phase picks it up.
-add_library(tictactoe SHARED lib/libtictactoe.c)
+# Build libtictactoe as a STATIC library linked into the plugin.
+# Avoids shipping a separate .so (which the plugin-qt installPhase doesn't
+# package) and lets logos-cpp-generator dlopen the plugin without missing deps.
+add_library(tictactoe STATIC lib/libtictactoe.c)
 target_include_directories(tictactoe PUBLIC lib)
-set_target_properties(tictactoe PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
-    INSTALL_RPATH "$ORIGIN"
-)
-install(TARGETS tictactoe
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/logos/modules
-)
+set_target_properties(tictactoe PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Compile protobuf messages for multiplayer serialization
 find_package(Protobuf REQUIRED)
