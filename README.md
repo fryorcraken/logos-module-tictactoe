@@ -100,21 +100,20 @@ Output: QML files staged in `tictactoe-ui-qml/result/`.
 
 ### Generate LGX
 
+Each flake exposes `.#lgx-dual`, which packages both the `linux-amd64` (portable, for Basecamp) and `linux-amd64-dev` (nix-built, for `lgpm`) variants into a single `.lgx`. This is the only build variant the project ships — one artifact covers both install paths.
+
 ```bash
-# Core module
 cd tictactoe
-nix build '.#lgx-portable' --out-link result-lgx-portable
+nix build '.#lgx-dual' --out-link result-lgx-dual
 
-# UI module (C++ widget)
 cd tictactoe-ui-cpp
-nix build '.#lgx-portable' --override-input tictactoe path:../tictactoe --out-link result-lgx-portable
+nix build '.#lgx-dual' --override-input tictactoe path:../tictactoe --out-link result-lgx-dual
 
-# UI module (QML)
 cd tictactoe-ui-qml
-nix build '.#lgx-portable' --override-input tictactoe path:../tictactoe --out-link result-lgx-portable
+nix build '.#lgx-dual' --override-input tictactoe path:../tictactoe --out-link result-lgx-dual
 ```
 
-Replace `.#lgx-portable` with `.#lgx` for dev (nix-built) basecamp builds.
+The bundler used is the one pinned by `logos-module-builder`, so the version stays aligned with the rest of the build toolchain.
 
 ### Inspect
 
