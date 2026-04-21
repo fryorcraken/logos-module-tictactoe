@@ -3,13 +3,20 @@
 
   inputs = {
     logos-module-builder.url = "github:logos-co/logos-module-builder";
-    nix-bundle-lgx.url = "github:logos-co/nix-bundle-lgx";
+    nix-bundle-lgx.follows = "logos-module-builder/nix-bundle-lgx";
   };
 
-  outputs = inputs@{ logos-module-builder, ... }:
-    logos-module-builder.lib.mkLogosModule {
-      src = ./.;
-      configFile = ./metadata.json;
-      flakeInputs = inputs;
+  outputs = inputs@{ logos-module-builder, nix-bundle-lgx, ... }:
+    let
+      base = logos-module-builder.lib.mkLogosModule {
+        src = ./.;
+        configFile = ./metadata.json;
+        flakeInputs = inputs;
+      };
+    in
+    base // {
+      packages = builtins.mapAttrs (system: pkgs: pkgs // {
+        lgx-dual = nix-bundle-lgx.bundlers.${system}.dual pkgs.lib;
+      }) base.packages;
     };
 }

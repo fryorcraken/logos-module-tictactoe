@@ -2901,6 +2901,10 @@
     "root": {
       "inputs": {
         "logos-module-builder": "logos-module-builder",
+        "nix-bundle-lgx": [
+          "logos-module-builder",
+          "nix-bundle-lgx"
+        ],
         "tictactoe": "tictactoe"
       }
     },
