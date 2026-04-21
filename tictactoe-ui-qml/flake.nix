@@ -16,6 +16,8 @@
       };
     in
     base // {
+      # Expose .#lgx-dual manually until the builder ships it upstream
+      # (tracked in logos-co/logos-module-builder#81).
       packages = builtins.mapAttrs (system: pkgs: pkgs // {
         lgx-dual = nix-bundle-lgx.bundlers.${system}.dual pkgs.default;
       }) base.packages;
