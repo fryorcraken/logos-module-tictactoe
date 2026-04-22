@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Tic-tac-toe QML UI — QML frontend for tictactoe module",
   "type": "ui_qml",
+  "main": "Main.qml",
   "view": "Main.qml",
   "dependencies": ["tictactoe"],
   "category": "games",
