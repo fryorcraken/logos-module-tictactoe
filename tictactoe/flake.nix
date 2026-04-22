@@ -12,6 +12,17 @@
     # typed SDK headers we generate matches basecamp's bundled delivery_module.
     # See: https://github.com/logos-co/logos-delivery-module/pull/23
     delivery_module.url = "github:logos-co/logos-delivery-module/1fde1566291fe062b98255003b9166b0261c6081";
+
+    # Force delivery_module's transitive `logos-module-builder` to follow our
+    # tutorial-v1 pin. Without this, delivery_module drags in its own master-
+    # branch module-builder (newer, incompatible with basecamp v0.1.1's bundled
+    # delivery_module wire format) as a second entry in flake.lock. That extra
+    # entry silently wins when a UI flake does `--override-input tictactoe
+    # path:...` and breaks the tutorial-sanctioned local-dev workflow.
+    # TODO: remove once upstream tutorial / module-builder scaffold emits this
+    # `follows` wiring automatically. Tracking:
+    # https://github.com/logos-co/logos-module-builder/issues/83
+    delivery_module.inputs.logos-module-builder.follows = "logos-module-builder";
   };
 
   outputs = inputs@{ logos-module-builder, delivery_module, ... }:
