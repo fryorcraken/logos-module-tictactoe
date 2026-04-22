@@ -86,13 +86,12 @@ TicTacToePlugin::~TicTacToePlugin()
 
 void TicTacToePlugin::initLogos(LogosAPI* logosAPIInstance)
 {
+    // `logosAPI` is the member inherited from `PluginInterface` (see
+    // core/interface.h in the SDK) — the host owns its lifetime, so we
+    // only assign, never delete. `logos` is ours.
     if (logos) {
         delete logos;
         logos = nullptr;
-    }
-    if (logosAPI) {
-        delete logosAPI;
-        logosAPI = nullptr;
     }
     logosAPI = logosAPIInstance;
     if (logosAPI) {
@@ -138,6 +137,20 @@ int TicTacToePlugin::currentPlayer()
 
 // ── Multiplayer ───────────────────────────────────────────────────
 
+// NOTE: the RPC chain below (createNode → start → subscribe, and the symmetric
+// unsubscribe/stop in disableMultiplayer, and send() in sendGameMessage) uses
+// the SYNCHRONOUS `invokeRemoteMethod`. Each call blocks the host thread,
+// which means the UI freezes in "connecting…" until createNode+start+subscribe
+// all complete (often hundreds of ms combined). We'd prefer
+// `invokeRemoteMethodAsync` with callbacks so status could progress
+// incrementally, but that API only exists on `logos-module-builder` master —
+// we're pinned to `tutorial-v1` because basecamp v0.1.1's bundled
+// delivery_module speaks the pre-LogosResult wire format. Same branch split
+// that keeps onEvent broken for C++ (see tictactoe-ui-cpp's poll workaround).
+// Resolution path: once basecamp ships a build with the newer delivery_module
+// wrapper we can bump to master, switch these calls to
+// `invokeRemoteMethodAsync`, and drop the QTimer poll in tictactoe-ui-cpp.
+// Until then the sync path is intentional, not an oversight.
 void TicTacToePlugin::enableMultiplayer()
 {
     TTT_TRACE("enableMultiplayer() entered");
