@@ -5,8 +5,14 @@
 #include <QByteArray>
 #include <QDebug>
 #include <QVariantList>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 static FILE* ttt_trace_file()
@@ -31,6 +37,40 @@ static FILE* ttt_trace_file()
     fprintf(stderr, "\n"); \
     fflush(stderr); \
 } while (0)
+
+// Pick a free OS-assigned port on 0.0.0.0 for `type` (SOCK_STREAM or
+// SOCK_DGRAM). Workaround for logos-delivery-module#24: createNode fails
+// silently when tcpPort or discv5UdpPort is 0, so we pick ephemeral ports
+// ourselves and pass concrete numbers. Inherent TOCTOU window between close()
+// and delivery_module's bind(), but acceptable for local dev multiplayer.
+//
+// Ideally delivery_module would handle this itself — either by accepting
+// port 0 as "OS-assigned" per POSIX convention (its own factory code at
+// waku/factory/waku.nim:316-319 already claims to support this), or by
+// picking free ports by default so modules don't need to care about port
+// assignment at all. Once that's fixed upstream, this helper and the
+// pickFreePort calls in enableMultiplayer() can go away.
+static int pickFreePort(int type)
+{
+    int fd = ::socket(AF_INET, type, 0);
+    if (fd < 0) return 0;
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = 0;
+    if (::bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
+        ::close(fd);
+        return 0;
+    }
+    socklen_t len = sizeof(addr);
+    if (::getsockname(fd, reinterpret_cast<sockaddr*>(&addr), &len) < 0) {
+        ::close(fd);
+        return 0;
+    }
+    int port = ntohs(addr.sin_port);
+    ::close(fd);
+    return port;
+}
 
 TicTacToePlugin::TicTacToePlugin(QObject* parent)
     : QObject(parent)
@@ -188,7 +228,24 @@ void TicTacToePlugin::enableMultiplayer()
     };
 
     // 1. Create the delivery node.
-    QString config = R"({"logLevel":"INFO","mode":"Core","preset":"logos.dev"})";
+    // Pick free ports ourselves because delivery_module rejects port 0 in the
+    // JSON config (logos-co/logos-delivery-module#24). Lets two basecamps run
+    // on one host without hardcoded port assignments. This really ought to be
+    // delivery_module's responsibility — it should ship with sensible defaults
+    // (ephemeral ports, or "port 0 = OS picks") so modules don't have to
+    // reinvent socket probing. Remove once upstream fixes the port-0 path.
+    int tcpPort = pickFreePort(SOCK_STREAM);
+    int udpPort = pickFreePort(SOCK_DGRAM);
+    if (tcpPort == 0 || udpPort == 0) {
+        TTT_TRACE("pickFreePort failed: tcp=%d udp=%d errno=%d (%s)",
+                  tcpPort, udpPort, errno, std::strerror(errno));
+        setMpError("failed to pick free ports for delivery_module");
+        return;
+    }
+    TTT_TRACE("picked tcpPort=%d discv5UdpPort=%d", tcpPort, udpPort);
+    QString config = QStringLiteral(
+        R"({"logLevel":"INFO","mode":"Core","preset":"logos.dev","tcpPort":%1,"discv5UdpPort":%2})"
+    ).arg(tcpPort).arg(udpPort);
     TTT_TRACE("calling createNode");
     if (!callBool("createNode",
                   client->invokeRemoteMethod("delivery_module", "createNode", config))) {
