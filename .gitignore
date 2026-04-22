@@ -7,3 +7,4 @@ build/
 
 # Nix tool symlinks
 tools/
+.scaffold

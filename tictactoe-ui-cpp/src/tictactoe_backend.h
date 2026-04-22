@@ -3,11 +3,10 @@
 
 #include <QObject>
 #include <QString>
+#include <QTimer>
 #include "logos_sdk.h"
 
 class LogosAPI;
-class LogosAPIClient;
-class LogosObject;
 
 class TicTacToeBackend : public QObject
 {
@@ -43,8 +42,13 @@ private:
 
     LogosModules*   m_logos;
     LogosAPI*       m_logosAPI;
-    LogosAPIClient* m_tttClient  = nullptr;
-    LogosObject*    m_tttObject  = nullptr;
+
+    // Poll timer used while multiplayer is enabled to pick up remote moves.
+    // We poll because LogosAPIClient::onEvent segfaults on the tutorial-v1
+    // module-builder pin (event subscription needs the default branch).
+    // TODO: switch to onEvent once we can bump module-builder.
+    QTimer*         m_mpPollTimer = nullptr;
+    int             m_lastMessagesReceived = 0;
 
     // Cached multiplayer state (from core module)
     bool m_multiplayerEnabled = false;

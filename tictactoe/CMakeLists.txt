@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(TicTacToeModulePlugin LANGUAGES C CXX)
+project(TicTacToeModulePlugin LANGUAGES CXX)
 
 # Include the Logos Module CMake helper
 if(DEFINED ENV{LOGOS_MODULE_BUILDER_ROOT})
@@ -9,13 +9,6 @@ elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/LogosModule.cmake")
 else()
     message(FATAL_ERROR "LogosModule.cmake not found")
 endif()
-
-# Build libtictactoe as a STATIC library linked into the plugin.
-# Avoids shipping a separate .so (which the plugin-qt installPhase doesn't
-# package) and lets logos-cpp-generator dlopen the plugin without missing deps.
-add_library(tictactoe STATIC lib/libtictactoe.c)
-target_include_directories(tictactoe PUBLIC lib)
-set_target_properties(tictactoe PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Compile protobuf messages for multiplayer serialization
 find_package(Protobuf REQUIRED)
@@ -36,7 +29,6 @@ add_custom_command(
     COMMENT "Generating protobuf sources for tictactoe"
 )
 
-# Define the module, linking against the tictactoe CMake target
 logos_module(
     NAME tictactoe
     SOURCES
@@ -45,10 +37,9 @@ logos_module(
         src/tictactoe_plugin.cpp
         ${PROTO_SRC}
         ${PROTO_HDR}
-    LINK_TARGETS
+    EXTERNAL_LIBS
         tictactoe
-    INCLUDE_DIRS
-        ${PROTO_GEN_DIR}
 )
 
+target_include_directories(tictactoe_module_plugin PRIVATE ${PROTO_GEN_DIR})
 target_link_libraries(tictactoe_module_plugin PRIVATE protobuf::libprotobuf)

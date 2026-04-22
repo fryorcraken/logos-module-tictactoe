@@ -2,9 +2,35 @@
 #include "tictactoe.pb.h"
 #include "logos_api.h"
 #include "logos_api_client.h"
-#include "logos_object.h"
 #include <QByteArray>
 #include <QDebug>
+#include <QVariantList>
+#include <cstdio>
+#include <cstdlib>
+#include <unistd.h>
+
+static FILE* ttt_trace_file()
+{
+    static FILE* f = []() {
+        const char* path = std::getenv("TICTACTOE_TRACE_PATH");
+        if (!path || !*path) path = "/tmp/tictactoe-trace.log";
+        FILE* fp = std::fopen(path, "a");
+        if (fp) setvbuf(fp, nullptr, _IOLBF, 0);
+        return fp;
+    }();
+    return f;
+}
+
+#define TTT_TRACE(...) do { \
+    if (FILE* _f = ttt_trace_file()) { \
+        fprintf(_f, "[tictactoe pid=%d] ", (int)getpid()); \
+        fprintf(_f, __VA_ARGS__); \
+        fprintf(_f, "\n"); \
+    } \
+    fprintf(stderr, "[tictactoe] " __VA_ARGS__); \
+    fprintf(stderr, "\n"); \
+    fflush(stderr); \
+} while (0)
 
 TicTacToePlugin::TicTacToePlugin(QObject* parent)
     : QObject(parent)
@@ -74,109 +100,133 @@ int TicTacToePlugin::currentPlayer()
 
 void TicTacToePlugin::enableMultiplayer()
 {
-    if (m_mpEnabled) return;
-
-    m_deliveryClient = logosAPI->getClient("delivery_module");
-    if (!m_deliveryClient) {
-        qWarning() << "TicTacToePlugin: failed to get delivery_module client";
-        setMpError("delivery_module not available");
+    TTT_TRACE("enableMultiplayer() entered");
+    emit eventResponse("mpStatusChanged", QVariantList() << 1); // 1=connecting (early)
+    if (m_mpEnabled) { TTT_TRACE("already enabled, returning"); return; }
+    if (!logos) {
+        TTT_TRACE("logos is null");
+        setMpError("Logos SDK not initialized");
         return;
     }
 
-    // 1. Create the delivery node. Bool-returning methods come back as a
-    // QVariant(bool); abort the whole enable flow if any step fails.
+    // Register event handlers before start so we don't miss early events.
+    logos->delivery_module.on("messageReceived",
+        [this](const QString& /*eventName*/, const QVariantList& data) {
+            if (data.size() < 3) {
+                qWarning() << "TicTacToePlugin: messageReceived payload too short";
+                return;
+            }
+            // messageReceived delivers data[2] as base64. We encode our own
+            // payload as base64 before send(), so the full path is
+            // decode(delivery base64) → decode(our base64) → protobuf.
+            QByteArray deliveryPayload = QByteArray::fromBase64(data[2].toString().toUtf8());
+            QByteArray protoBytes = QByteArray::fromBase64(deliveryPayload);
+
+            tictactoe::GameMessage msg;
+            if (!msg.ParseFromArray(protoBytes.data(), protoBytes.size())) {
+                qWarning() << "TicTacToePlugin: failed to parse protobuf message";
+                return;
+            }
+
+            if (msg.has_move()) {
+                int row = msg.move().row();
+                int col = msg.move().col();
+                qDebug() << "TicTacToePlugin: received remote move" << row << col
+                         << "player" << msg.move().player();
+                tictactoe_play(m_game, row, col);
+                m_msgReceived++;
+                TicTacToeStatus s = tictactoe_status(m_game);
+                emit eventResponse("remoteMove", QVariantList() << row << col << static_cast<int>(s));
+            } else if (msg.has_new_game()) {
+                qDebug() << "TicTacToePlugin: received remote newGame";
+                tictactoe_reset(m_game);
+                m_msgReceived++;
+                emit eventResponse("remoteNewGame", {});
+            }
+        });
+
+    logos->delivery_module.on("connectionStateChanged",
+        [this](const QString& /*eventName*/, const QVariantList& data) {
+            m_mpConnected = data.size() > 0 && !data[0].toString().isEmpty();
+            qDebug() << "TicTacToePlugin: connection state changed, connected:" << m_mpConnected;
+            int status = m_mpConnected ? 2 : 1; // 2=connected, 1=connecting
+            emit eventResponse("mpStatusChanged", QVariantList() << status);
+        });
+
+    logos->delivery_module.on("messageError",
+        [this](const QString& /*eventName*/, const QVariantList& data) {
+            m_mpError = data.size() >= 3 ? data[2].toString() : "send failed";
+            qWarning() << "TicTacToePlugin: message error:" << m_mpError;
+            emit eventResponse("mpStatusChanged", QVariantList() << 3);
+        });
+
+    // The generated DeliveryModule wrapper decodes RPC replies as
+    // LogosResult, but delivery_module's Qt slots return plain bool on the
+    // wire. QVariant(bool).value<LogosResult>() yields {success=false}, so
+    // every typed-wrapper RPC reports a spurious failure. Bypass it: go
+    // straight to invokeRemoteMethod + toBool(). Events still flow through
+    // the typed wrapper's .on() which delegates to client->onEvent.
+    LogosAPIClient* client = logosAPI->getClient("delivery_module");
+    if (!client) {
+        TTT_TRACE("getClient returned null");
+        setMpError("delivery_module client unavailable");
+        return;
+    }
+
+    auto callBool = [&](const char* what, const QVariant& v) {
+        TTT_TRACE("RPC %s: raw QVariant type=%d, toString=%s",
+                  what, (int)v.userType(), v.toString().toUtf8().constData());
+        if (!v.isValid()) {
+            setMpError(QStringLiteral("%1: no response").arg(what));
+            return false;
+        }
+        if (!v.toBool()) {
+            setMpError(QStringLiteral("%1 returned false").arg(what));
+            return false;
+        }
+        return true;
+    };
+
+    // 1. Create the delivery node.
     QString config = R"({"logLevel":"INFO","mode":"Core","preset":"logos.dev"})";
-    if (!invokeBool("createNode", "delivery_module", "createNode", config)) {
-        teardownDelivery();
+    TTT_TRACE("calling createNode");
+    if (!callBool("createNode",
+                  client->invokeRemoteMethod("delivery_module", "createNode", config))) {
         return;
     }
 
-    // 2. Register event handlers before start
-    m_deliveryObject = m_deliveryClient->requestObject("delivery_module");
-    if (!m_deliveryObject) {
-        qWarning() << "TicTacToePlugin: failed to get delivery_module object for events";
-    } else {
-        m_deliveryClient->onEvent(m_deliveryObject, "messageReceived",
-            [this](const QString& /*eventName*/, const QVariantList& data) {
-                if (data.size() < 3) {
-                    qWarning() << "TicTacToePlugin: messageReceived payload too short";
-                    return;
-                }
-                // messageReceived delivers data[2] as base64. We encode our
-                // own payload as base64 before send(), so the full path is
-                // decode(delivery base64) → decode(our base64) → protobuf.
-                QByteArray deliveryPayload = QByteArray::fromBase64(data[2].toString().toUtf8());
-                QByteArray protoBytes = QByteArray::fromBase64(deliveryPayload);
-
-                tictactoe::GameMessage msg;
-                if (!msg.ParseFromArray(protoBytes.data(), protoBytes.size())) {
-                    qWarning() << "TicTacToePlugin: failed to parse protobuf message";
-                    return;
-                }
-
-                if (msg.has_move()) {
-                    int row = msg.move().row();
-                    int col = msg.move().col();
-                    qDebug() << "TicTacToePlugin: received remote move" << row << col
-                             << "player" << msg.move().player();
-                    // Apply move directly to game state (no broadcast)
-                    tictactoe_play(m_game, row, col);
-                    m_msgReceived++;
-                    TicTacToeStatus s = tictactoe_status(m_game);
-                    emit eventResponse("remoteMove", QVariantList() << row << col << static_cast<int>(s));
-                } else if (msg.has_new_game()) {
-                    qDebug() << "TicTacToePlugin: received remote newGame";
-                    tictactoe_reset(m_game);
-                    m_msgReceived++;
-                    emit eventResponse("remoteNewGame", {});
-                }
-            });
-
-        m_deliveryClient->onEvent(m_deliveryObject, "connectionStateChanged",
-            [this](const QString& /*eventName*/, const QVariantList& data) {
-                m_mpConnected = data.size() > 0 && !data[0].toString().isEmpty();
-                qDebug() << "TicTacToePlugin: connection state changed, connected:" << m_mpConnected;
-                int status = m_mpConnected ? 2 : 1; // 2=connected, 1=connecting
-                emit eventResponse("mpStatusChanged", QVariantList() << status);
-            });
-
-        m_deliveryClient->onEvent(m_deliveryObject, "messageError",
-            [this](const QString& /*eventName*/, const QVariantList& data) {
-                m_mpError = data.size() >= 3 ? data[2].toString() : "send failed";
-                qWarning() << "TicTacToePlugin: message error:" << m_mpError;
-                emit eventResponse("mpStatusChanged", QVariantList() << 3);
-            });
-    }
-
-    // 3. Start the node
-    if (!invokeBool("start", "delivery_module", "start")) {
-        teardownDelivery();
+    // 2. Start the node.
+    TTT_TRACE("calling start");
+    if (!callBool("start",
+                  client->invokeRemoteMethod("delivery_module", "start"))) {
         return;
     }
-    // 4. Subscribe to content topic. If this fails we still have a running
-    // node, so stop it before bailing out.
-    if (!invokeBool("subscribe", "delivery_module", "subscribe", m_contentTopic)) {
-        m_deliveryClient->invokeRemoteMethod("delivery_module", "stop");
-        teardownDelivery();
+
+    // 3. Subscribe. If this fails we still have a running node, so stop it
+    // before bailing out.
+    TTT_TRACE("calling subscribe");
+    if (!callBool("subscribe",
+                  client->invokeRemoteMethod("delivery_module", "subscribe", m_contentTopic))) {
+        client->invokeRemoteMethod("delivery_module", "stop");
         return;
     }
 
     m_mpEnabled = true;
+    TTT_TRACE("multiplayer enabled");
     emit eventResponse("mpStatusChanged", QVariantList() << 1); // 1=connecting
-    qDebug() << "TicTacToePlugin: multiplayer enabled, topic:" << m_contentTopic;
 }
 
 void TicTacToePlugin::disableMultiplayer()
 {
     if (!m_mpEnabled) return;
 
-    if (m_deliveryClient) {
-        // Best-effort teardown: log failures but continue so the local state
-        // is reset regardless of what delivery_module reports.
-        invokeBool("unsubscribe", "delivery_module", "unsubscribe", m_contentTopic);
-        invokeBool("stop", "delivery_module", "stop");
+    if (logosAPI) {
+        if (LogosAPIClient* client = logosAPI->getClient("delivery_module")) {
+            // Best-effort teardown — same wrapper-bypass as enableMultiplayer.
+            client->invokeRemoteMethod("delivery_module", "unsubscribe", m_contentTopic);
+            client->invokeRemoteMethod("delivery_module", "stop");
+        }
     }
-    m_deliveryObject = nullptr;
     m_mpConnected = false;
     m_mpEnabled = false;
     m_msgSent = 0;
@@ -233,50 +283,23 @@ void TicTacToePlugin::sendGameMessage(const tictactoe::GameMessage& msg)
     QString payload = QString::fromLatin1(
         QByteArray(serialized.data(), serialized.size()).toBase64());
 
-    // send() returns a LogosResult; via invokeRemoteMethod it comes back as
-    // a QVariant. A missing/invalid result means the RPC itself failed, not
-    // just the send — surface it via mpError and mpStatusChanged.
-    QVariant r = m_deliveryClient->invokeRemoteMethod(
-        "delivery_module", "send", m_contentTopic, payload);
-    if (!r.isValid()) {
-        setMpError("delivery_module.send did not return a value");
+    LogosAPIClient* client = logosAPI ? logosAPI->getClient("delivery_module") : nullptr;
+    if (!client) {
+        setMpError("delivery_module client unavailable");
+        return;
+    }
+    QVariant v = client->invokeRemoteMethod("delivery_module", "send",
+                                            m_contentTopic, payload);
+    if (!v.isValid()) {
+        setMpError("send: no response");
         return;
     }
     m_msgSent++;
 }
 
-bool TicTacToePlugin::invokeBool(const char* what,
-                                 const QString& obj,
-                                 const QString& method,
-                                 const QVariant& arg)
-{
-    QVariant r = arg.isValid()
-                     ? m_deliveryClient->invokeRemoteMethod(obj, method, arg)
-                     : m_deliveryClient->invokeRemoteMethod(obj, method);
-    if (!r.isValid()) {
-        qWarning() << "TicTacToePlugin:" << what
-                   << "returned an invalid QVariant (RPC failed or timed out)";
-        setMpError(QStringLiteral("%1 failed: no response").arg(what));
-        return false;
-    }
-    if (!r.toBool()) {
-        qWarning() << "TicTacToePlugin:" << what
-                   << "returned false:" << r;
-        setMpError(QStringLiteral("%1 failed").arg(what));
-        return false;
-    }
-    return true;
-}
-
 void TicTacToePlugin::setMpError(const QString& err)
 {
     m_mpError = err;
+    qWarning() << "TicTacToePlugin:" << err;
     emit eventResponse("mpStatusChanged", QVariantList() << 3); // 3=error
-}
-
-void TicTacToePlugin::teardownDelivery()
-{
-    m_deliveryObject = nullptr;
-    m_mpEnabled = false;
-    m_mpConnected = false;
 }
