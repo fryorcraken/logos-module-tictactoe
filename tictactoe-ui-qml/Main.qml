@@ -192,7 +192,7 @@ Rectangle {
     // If logos.onModuleEvent is not available (older runtime), poll as fallback.
     Timer {
         id: mpPollTimer
-        interval: 2000
+        interval: 500
         repeat: true
         running: root.multiplayerEnabled && (typeof logos === "undefined" || !logos.onModuleEvent)
         onTriggered: {
@@ -225,20 +225,20 @@ Rectangle {
         var newBoard = []
         for (var r = 0; r < 3; r++) {
             for (var c = 0; c < 3; c++) {
-                var cell = callModule("getCell", [r, c])
+                var cell = Number(callModule("getCell", [r, c])) || 0
                 newBoard.push(cell)
             }
         }
         root.board = newBoard
-        root.gameStatus = callModule("status", [])
-        root.currentPlayer = callModule("currentPlayer", [])
+        root.gameStatus = Number(callModule("status", [])) || 0
+        root.currentPlayer = Number(callModule("currentPlayer", [])) || 0
         root.winLine = (root.gameStatus === 1 || root.gameStatus === 2) ? findWinLine() : []
     }
 
     function refreshMpState() {
         var status = callModule("mpStatus", [])
-        root.multiplayerEnabled = (status !== 0)
-        root.deliveryConnected = (status === 2)
+        root.multiplayerEnabled = (status > 0)
+        root.deliveryConnected = (Number(status) === 2)
         root.messagesSent = callModule("mpMessagesSent", [])
         root.messagesReceived = callModule("mpMessagesReceived", [])
         var err = callModule("mpError", [])
