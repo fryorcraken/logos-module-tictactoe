@@ -151,6 +151,13 @@ int TicTacToePlugin::currentPlayer()
 // wrapper we can bump to master, switch these calls to
 // `invokeRemoteMethodAsync`, and drop the QTimer poll in tictactoe-ui-cpp.
 // Until then the sync path is intentional, not an oversight.
+//
+// Each delivery call passes an explicit 90s Timeout. The SDK's default is
+// 20000ms, but `createNode` spins up libwaku (~20–25s cold), which races
+// the default and has been observed to abort the replica mid-handshake in
+// dev basecamp — delivery_module's logos_host child exits on disconnect
+// and basecamp segfaults dispatching the next socket-read event into the
+// torn-down replica. 90s gives libwaku room without surprising the user.
 void TicTacToePlugin::enableMultiplayer()
 {
     TTT_TRACE("enableMultiplayer() entered");
@@ -279,16 +286,25 @@ void TicTacToePlugin::enableMultiplayer()
     QString config = QStringLiteral(
         R"({"logLevel":"INFO","mode":"Core","preset":"logos.dev","tcpPort":%1,"discv5UdpPort":%2})"
     ).arg(tcpPort).arg(udpPort);
+    // delivery_module's createNode spins up libwaku (~20–25s cold). The
+    // SDK's default QRO reply timeout (20000ms, see Timeout default in
+    // logos_mode.h) races against this and can abort mid-handshake, which
+    // makes delivery_module's logos_host child exit and dev basecamp
+    // segfault dispatching a socket-read into the torn-down replica.
+    // Pass an explicit generous timeout on every delivery call so the
+    // sync RPC waits out the slow path.
+    const Timeout kDeliveryTimeout(90000);
+
     TTT_TRACE("calling createNode");
     if (!callBool("createNode",
-                  client->invokeRemoteMethod("delivery_module", "createNode", config))) {
+                  client->invokeRemoteMethod("delivery_module", "createNode", config, kDeliveryTimeout))) {
         return;
     }
 
     // 2. Start the node.
     TTT_TRACE("calling start");
     if (!callBool("start",
-                  client->invokeRemoteMethod("delivery_module", "start"))) {
+                  client->invokeRemoteMethod("delivery_module", "start", QVariantList(), kDeliveryTimeout))) {
         return;
     }
 
@@ -296,8 +312,8 @@ void TicTacToePlugin::enableMultiplayer()
     // before bailing out.
     TTT_TRACE("calling subscribe");
     if (!callBool("subscribe",
-                  client->invokeRemoteMethod("delivery_module", "subscribe", m_contentTopic))) {
-        client->invokeRemoteMethod("delivery_module", "stop");
+                  client->invokeRemoteMethod("delivery_module", "subscribe", m_contentTopic, kDeliveryTimeout))) {
+        client->invokeRemoteMethod("delivery_module", "stop", QVariantList(), kDeliveryTimeout);
         return;
     }
 
@@ -313,8 +329,11 @@ void TicTacToePlugin::disableMultiplayer()
     if (logosAPI) {
         if (LogosAPIClient* client = logosAPI->getClient("delivery_module")) {
             // Best-effort teardown — same wrapper-bypass as enableMultiplayer.
-            client->invokeRemoteMethod("delivery_module", "unsubscribe", m_contentTopic);
-            client->invokeRemoteMethod("delivery_module", "stop");
+            // Same generous timeout as the enable path: libwaku shutdown can
+            // also drag, and the default (20s) has been observed to race.
+            const Timeout kDeliveryTimeout(90000);
+            client->invokeRemoteMethod("delivery_module", "unsubscribe", m_contentTopic, kDeliveryTimeout);
+            client->invokeRemoteMethod("delivery_module", "stop", QVariantList(), kDeliveryTimeout);
         }
     }
     m_mpConnected = false;
@@ -379,7 +398,7 @@ void TicTacToePlugin::sendGameMessage(const tictactoe::GameMessage& msg)
         return;
     }
     QVariant v = client->invokeRemoteMethod("delivery_module", "send",
-                                            m_contentTopic, payload);
+                                            m_contentTopic, payload, Timeout(90000));
     if (!v.isValid()) {
         setMpError("send: no response");
         return;
