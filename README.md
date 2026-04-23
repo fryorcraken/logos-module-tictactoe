@@ -6,7 +6,7 @@ A tic-tac-toe Logos mini app. Contains a core module and two alternative UI fron
 - **tictactoe_ui** (C++ widget UI) — compiled C++ Qt widget frontend, calls the core module via the generated Logos SDK (Tutorial Part 3, Option B)
 - **tictactoe_ui_qml** (QML UI) — declarative QML frontend, calls the core module via the `logos.callModule()` bridge (Tutorial Part 2). No compilation needed.
 
-Both UIs share the same core gameplay — 3x3 board, X/O turns, win/draw detection with dark-theme styling — and both support **experimental multiplayer** via the [delivery module](https://github.com/logos-co/logos-delivery-module) (Waku messaging). The QML UI is significantly simpler: 1 file / ~270 LOC vs 7 files / ~350 LOC for the C++ widget UI, with no compilation needed. Multiplayer logic lives in the core module; the UIs subscribe to its events (C++ via the generated SDK's `onEvent`, QML via `logos.onModuleEvent`).
+Both UIs share the same core gameplay — 3x3 board, X/O turns, win/draw detection with dark-theme styling — and both support **experimental multiplayer** via the [logos delivery module](https://github.com/logos-co/logos-delivery-module). The QML UI is significantly simpler: 1 file / ~270 LOC vs 7 files / ~350 LOC for the C++ widget UI, with no compilation needed. Multiplayer logic lives in the core module; the UIs subscribe to its events (C++ via the generated SDK's `onEvent`, QML via `logos.onModuleEvent`).
 
 Built following the [Logos module tutorials](https://github.com/logos-co/logos-tutorial) (Part 1 + Part 2 + Part 3, Option B).
 
@@ -170,7 +170,7 @@ Basecamp will re-preinstall its bundled modules on next launch.
 
 ## Multiplayer (experimental)
 
-Both UIs support basic multiplayer via the [delivery module](https://github.com/logos-co/logos-delivery-module) (Waku messaging network). When enabled, each move is broadcast to all peers on the same content topic. Multiplayer logic lives in the core `tictactoe` module — the UIs just call `enableMultiplayer` / `disableMultiplayer` and subscribe to `remoteMove` / `remoteNewGame` / `mpStatusChanged` events.
+Both UIs support basic multiplayer via the [logos delivery module](https://github.com/logos-co/logos-delivery-module). When enabled, each move is broadcast to all peers on the same content topic. Multiplayer logic lives in the core `tictactoe` module — the UIs just call `enableMultiplayer` / `disableMultiplayer` and subscribe to `remoteMove` / `remoteNewGame` / `mpStatusChanged` events.
 
 - **Content topic:** `/tictactoe/1/moves/proto` ([LIP-23](https://lip.logos.co/messaging/informational/23/topics.html#content-topics))
 - **Wire format:** Protocol Buffers (`proto/tictactoe.proto`)
@@ -185,7 +185,7 @@ Multiplayer is intentionally naive — no auth, no session scoping, no state syn
 - No game state synchronization — both players must start a new game before playing
 - No player assignment — both sides can play any cell (honor system)
 - No lobby or matchmaking — all instances on the same network share one game
-- Self-echo — a player's own moves and newGame broadcasts come back over Waku and are replayed locally. The real fix requires a per-player identifier and per-game session scoping so each side only consumes peer messages
+- Self-echo — a player's own moves and newGame broadcasts come back through logos delivery and are replayed locally. The real fix requires a per-player identifier and per-game session scoping so each side only consumes peer messages
 
 ## Known Limitations
 
