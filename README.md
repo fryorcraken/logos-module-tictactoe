@@ -12,11 +12,16 @@ Built following the [Logos module tutorials](https://github.com/logos-co/logos-t
 
 **Quick start:** grab the pre-built `.lgx` files from the [latest release](https://github.com/fryorcraken/logos-module-tictactoe/releases/latest) and install them in logos-basecamp — no compilation needed. See [Install into logos-basecamp](#install-into-logos-basecamp).
 
+Each release ships two flavors of every module:
+
+- **portable** (e.g. `logos-tictactoe-module-lib.lgx`) — self-contained, all shared-lib dependencies bundled. Use with the [logos-basecamp v0.1.1 AppImage](https://github.com/logos-co/logos-basecamp/releases/tag/v0.1.1). `linux-amd64` variant.
+- **dev** (e.g. `logos-tictactoe-module-lib-dev.lgx`) — unbundled, resolves libraries from the host Nix store at runtime. Use with a dev basecamp built from source (e.g. via [logos-scaffold-basecamp](https://github.com/logos-co/logos-scaffold-basecamp)). `linux-amd64-dev` variant.
+
 ## Install into logos-basecamp
 
 Tested with [logos-basecamp v0.1.1](https://github.com/logos-co/logos-basecamp/releases/tag/v0.1.1) (AppImage).
 
-Download the `.lgx` files from the [latest release](https://github.com/fryorcraken/logos-module-tictactoe/releases).
+Download the `.lgx` files from the [latest release](https://github.com/fryorcraken/logos-module-tictactoe/releases) (use the files **without** the `-dev` suffix — see the [flavors section](#logos-module-tictactoe) for when to pick which).
 
 1. Open **logos-basecamp**
 2. Go to **modules** → **install LGX Package** and select `logos-tictactoe-module-lib.lgx` (core module)
@@ -25,6 +30,17 @@ Download the `.lgx` files from the [latest release](https://github.com/fryorcrak
    - `logos-tictactoe_ui_qml-module-lib.lgx` — QML UI
 
 The tic-tac-toe UI tab appears in the sidebar.
+
+### Install into a dev basecamp
+
+If you built basecamp from source (for instance with [logos-scaffold-basecamp](https://github.com/logos-co/logos-scaffold-basecamp)), use the `-dev.lgx` files from the release. With `lgs`:
+
+```bash
+lgs basecamp install  # auto-discovers this project's flakes and installs into alice + bob
+lgs basecamp launch alice
+```
+
+With the raw `-dev.lgx` files, install via `lgpm` into the profile's modules/plugins directory (substitute `linux-amd64-dev` for `linux-amd64` in the [Alternative: manual install](#alternative-manual-install) snippet below).
 
 ### Alternative: manual install
 
@@ -98,9 +114,15 @@ Output: QML files staged in `tictactoe-ui-qml/result/`.
 
 ### Generate LGX
 
-Each flake exposes `.#lgx-portable`, which packages the `linux-amd64` portable variant for Basecamp. This is the artifact CI publishes and the one the release workflow attaches.
+Each flake exposes two LGX outputs:
+
+- `.#lgx-portable` — `linux-amd64` variant, self-contained (all shared libs bundled). Consumed by the v0.1.1 AppImage.
+- `.#lgx` — `linux-amd64-dev` variant, unbundled. Consumed by a dev basecamp (libs are resolved from the host Nix store at runtime).
+
+CI builds both and attaches them to every release; the `-dev.lgx` files are the dev variant.
 
 ```bash
+# Portable (AppImage basecamp)
 cd tictactoe
 nix build '.#lgx-portable' --out-link result-lgx-portable
 
@@ -109,6 +131,16 @@ nix build '.#lgx-portable' --override-input tictactoe path:../tictactoe --out-li
 
 cd tictactoe-ui-qml
 nix build '.#lgx-portable' --override-input tictactoe path:../tictactoe --out-link result-lgx-portable
+
+# Dev (source-built basecamp)
+cd tictactoe
+nix build '.#lgx' --out-link result-lgx
+
+cd tictactoe-ui-cpp
+nix build '.#lgx' --override-input tictactoe path:../tictactoe --out-link result-lgx
+
+cd tictactoe-ui-qml
+nix build '.#lgx' --override-input tictactoe path:../tictactoe --out-link result-lgx
 ```
 
 The bundler used is the one pinned by `logos-module-builder`, so the version stays aligned with the rest of the build toolchain.

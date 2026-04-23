@@ -12,20 +12,31 @@ Both UIs are alternative frontends providing identical gameplay.
 
 ## Build Commands
 
+Each flake exposes two LGX bundlers:
+- `.#lgx-portable` — `linux-amd64` variant, self-contained (bundles all shared libs). Consumed by the v0.1.1 AppImage.
+- `.#lgx` — `linux-amd64-dev` variant, unbundled (resolves libs from the host Nix store). Consumed by a dev basecamp built from source (e.g. via `logos-scaffold-basecamp`).
+
+Both are published to every GH release; CI builds them side-by-side. Portable files keep the plain name; dev files get the `-dev.lgx` suffix.
+
 ```bash
 # Core module
 cd tictactoe && nix build '.#lgx-portable' --out-link result-lgx-portable
+cd tictactoe && nix build '.#lgx'          --out-link result-lgx
 
 # C++ UI
 cd tictactoe-ui-cpp && nix build '.#lgx-portable' --override-input tictactoe path:../tictactoe --out-link result-lgx-portable
+cd tictactoe-ui-cpp && nix build '.#lgx'          --override-input tictactoe path:../tictactoe --out-link result-lgx
 
 # QML UI
 cd tictactoe-ui-qml && nix build '.#lgx-portable' --override-input tictactoe path:../tictactoe --out-link result-lgx-portable
+cd tictactoe-ui-qml && nix build '.#lgx'          --override-input tictactoe path:../tictactoe --out-link result-lgx
 
 # Standalone test (no basecamp)
 cd tictactoe-ui-cpp && nix run . --override-input tictactoe path:../tictactoe
 cd tictactoe-ui-qml && nix run . --override-input tictactoe path:../tictactoe
 ```
+
+The core module's flake.nix has a `preConfigure` hook that compiles `lib/libtictactoe.c` → `libtictactoe.so` in-sandbox. Without it, logos-plugin-qt's `vendor_path` external-library handler stages only `lib*` files from the source `lib/` dir, so `.#lgx` ends up shipping `tictactoe_plugin.so` with undefined `tictactoe_*` symbols. See commit c486825. Upstream fix tracked in logos-co/logos-module-builder#83.
 
 ## Reset basecamp state
 

@@ -28,23 +28,31 @@ jobs:
       - name: Build QML UI portable LGX
         run: cd tictactoe-ui-qml && nix build '.#lgx-portable' --override-input tictactoe path:../tictactoe --out-link result-lgx-portable
 
-      - name: Upload core LGX artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: logos-tictactoe-module-lib.lgx
-          path: tictactoe/result-lgx-portable/*.lgx
+      - name: Build core dev LGX
+        run: cd tictactoe && nix build '.#lgx' --out-link result-lgx
 
-      - name: Upload UI LGX artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: logos-tictactoe-ui-cpp-module-lib.lgx
-          path: tictactoe-ui-cpp/result-lgx-portable/*.lgx
+      - name: Build UI dev LGX
+        run: cd tictactoe-ui-cpp && nix build '.#lgx' --override-input tictactoe path:../tictactoe --out-link result-lgx
 
-      - name: Upload QML UI LGX artifact
+      - name: Build QML UI dev LGX
+        run: cd tictactoe-ui-qml && nix build '.#lgx' --override-input tictactoe path:../tictactoe --out-link result-lgx
+
+      - name: Stage artifacts
+        run: |
+          mkdir -p dist
+          cp tictactoe/result-lgx-portable/logos-tictactoe-module-lib.lgx                   dist/logos-tictactoe-module-lib.lgx
+          cp tictactoe-ui-cpp/result-lgx-portable/logos-tictactoe_ui_cpp-module-lib.lgx     dist/logos-tictactoe_ui_cpp-module-lib.lgx
+          cp tictactoe-ui-qml/result-lgx-portable/logos-tictactoe_ui_qml-lib.lgx            dist/logos-tictactoe_ui_qml-lib.lgx
+          cp tictactoe/result-lgx/logos-tictactoe-module-lib.lgx                            dist/logos-tictactoe-module-lib-dev.lgx
+          cp tictactoe-ui-cpp/result-lgx/logos-tictactoe_ui_cpp-module-lib.lgx              dist/logos-tictactoe_ui_cpp-module-lib-dev.lgx
+          cp tictactoe-ui-qml/result-lgx/logos-tictactoe_ui_qml-lib.lgx                     dist/logos-tictactoe_ui_qml-lib-dev.lgx
+          ls -la dist/
+
+      - name: Upload LGX bundle
         uses: actions/upload-artifact@v4
         with:
-          name: logos-tictactoe-ui-qml-module-lib.lgx
-          path: tictactoe-ui-qml/result-lgx-portable/*.lgx
+          name: tictactoe-lgx-bundle
+          path: dist/*.lgx
 
   release:
     needs: build
@@ -55,17 +63,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: logos-tictactoe-module-lib.lgx
-          path: dist
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: logos-tictactoe-ui-cpp-module-lib.lgx
-          path: dist
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: logos-tictactoe-ui-qml-module-lib.lgx
+          name: tictactoe-lgx-bundle
           path: dist
 
       - name: Create release
