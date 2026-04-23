@@ -12,6 +12,39 @@ Rectangle {
     property int currentPlayer: 1  // 1=X, 2=O
     property var winLine: []  // indices of the 3 winning cells
 
+    // Multiplayer state (from core module events)
+    property bool multiplayerEnabled: false
+    property bool deliveryConnected: false
+    property int messagesSent: 0
+    property int messagesReceived: 0
+    property string deliveryError: ""
+
+    // Subscribe to tictactoe core module events
+    Component.onCompleted: {
+        if (typeof logos !== "undefined" && logos.onModuleEvent) {
+            logos.onModuleEvent("tictactoe", "remoteMove")
+            logos.onModuleEvent("tictactoe", "remoteNewGame")
+            logos.onModuleEvent("tictactoe", "mpStatusChanged")
+        }
+        callNewGame()
+    }
+
+    Connections {
+        target: typeof logos !== "undefined" ? logos : null
+        function onModuleEventReceived(moduleName, eventName, data) {
+            if (moduleName !== "tictactoe") return
+            if (eventName === "remoteMove") {
+                refreshBoard()
+                refreshMpState()
+            } else if (eventName === "remoteNewGame") {
+                refreshBoard()
+                refreshMpState()
+            } else if (eventName === "mpStatusChanged") {
+                refreshMpState()
+            }
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 24
@@ -111,40 +144,105 @@ Rectangle {
             }
         }
 
+        // ── Multiplayer section ────────────────────────────────
+        Button {
+            id: mpToggle
+            text: root.multiplayerEnabled ? "Disable Multiplayer" : "Enable Multiplayer"
+            font.pixelSize: 12
+            Layout.fillWidth: true
+
+            onClicked: {
+                if (root.multiplayerEnabled)
+                    callModule("disableMultiplayer", [])
+                else
+                    callModule("enableMultiplayer", [])
+                refreshMpState()
+            }
+
+            background: Rectangle {
+                color: mpToggle.hovered ? "#3a3a3a" : "#2a2a2a"
+                border.color: "#555"
+                border.width: 1
+                radius: 4
+            }
+
+            contentItem: Text {
+                text: mpToggle.text
+                font: mpToggle.font
+                color: "#e0e0e0"
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+        }
+
+        Text {
+            text: deliveryStatusText()
+            font.pixelSize: 10
+            color: root.deliveryError.length > 0 ? "#ff6b6b"
+                 : root.deliveryConnected ? "#4aff4a"
+                 : root.multiplayerEnabled ? "#ffcc00"
+                 : "#888"
+            Layout.alignment: Qt.AlignHCenter
+        }
+
         Item { Layout.fillHeight: true }
+    }
+
+    // ── Fallback poll timer ─────────────────────────────────────
+    // If logos.onModuleEvent is not available (older runtime), poll as fallback.
+    Timer {
+        id: mpPollTimer
+        interval: 500
+        repeat: true
+        running: root.multiplayerEnabled && (typeof logos === "undefined" || !logos.onModuleEvent)
+        onTriggered: {
+            refreshMpState()
+            refreshBoard()
+        }
     }
 
     // ── Logos bridge helpers ───────────────────────────────────
 
     function callModule(method, args) {
-        if (typeof logos === "undefined" || !logos.callModule) {
+        if (typeof logos === "undefined" || !logos.callModule)
             return -1
-        }
         return logos.callModule("tictactoe", method, args)
     }
 
     function callNewGame() {
         callModule("newGame", [])
         refreshBoard()
+        refreshMpState()
     }
 
     function callPlay(row, col) {
-        callModule("play", [row, col])
+        var result = callModule("play", [row, col])
         refreshBoard()
+        refreshMpState()
     }
 
     function refreshBoard() {
         var newBoard = []
         for (var r = 0; r < 3; r++) {
             for (var c = 0; c < 3; c++) {
-                var cell = callModule("getCell", [r, c])
+                var cell = Number(callModule("getCell", [r, c])) || 0
                 newBoard.push(cell)
             }
         }
         root.board = newBoard
-        root.gameStatus = callModule("status", [])
-        root.currentPlayer = callModule("currentPlayer", [])
+        root.gameStatus = Number(callModule("status", [])) || 0
+        root.currentPlayer = Number(callModule("currentPlayer", [])) || 0
         root.winLine = (root.gameStatus === 1 || root.gameStatus === 2) ? findWinLine() : []
+    }
+
+    function refreshMpState() {
+        var status = callModule("mpStatus", [])
+        root.multiplayerEnabled = (status > 0)
+        root.deliveryConnected = (Number(status) === 2)
+        root.messagesSent = callModule("mpMessagesSent", [])
+        root.messagesReceived = callModule("mpMessagesReceived", [])
+        var err = callModule("mpError", [])
+        root.deliveryError = (typeof err === "string") ? err : ""
     }
 
     function findWinLine() {
@@ -170,5 +268,12 @@ Rectangle {
         return root.currentPlayer === 1 ? "X's turn" : "O's turn"
     }
 
-    Component.onCompleted: callNewGame()
+    function deliveryStatusText() {
+        if (!root.multiplayerEnabled) return "Multiplayer: off"
+        if (root.deliveryError.length > 0)
+            return "Error: " + root.deliveryError
+        var state = root.deliveryConnected ? "connected" : "connecting..."
+        return "Delivery: " + state + " — sent: " + root.messagesSent + ", received: " + root.messagesReceived
+    }
+
 }

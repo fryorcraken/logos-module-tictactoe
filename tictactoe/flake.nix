@@ -2,14 +2,48 @@
   description = "Tic-tac-toe Logos module - wraps libtictactoe C library";
 
   inputs = {
-    logos-module-builder.url = "github:logos-co/logos-module-builder";
-    nix-bundle-lgx.url = "github:logos-co/nix-bundle-lgx";
+    logos-module-builder.url = "github:logos-co/logos-module-builder/tutorial-v1";
+
+    # Pin: head of `tutorial-v1-compat` on logos-delivery-module.
+    # Forked from tag 1.0.0 (what basecamp v0.1.1 ships — RPCs return plain
+    # `bool`, pre-`LogosResult`) with minimal module-builder packaging and the
+    # `externalLibInputs = { input; packages.default; }` shape fix on top.
+    # Must stay pinned to a commit on that branch so the wire format of the
+    # typed SDK headers we generate matches basecamp's bundled delivery_module.
+    # See: https://github.com/logos-co/logos-delivery-module/pull/23
+    delivery_module.url = "github:logos-co/logos-delivery-module/1fde1566291fe062b98255003b9166b0261c6081";
+
+    # Force delivery_module's transitive `logos-module-builder` to follow our
+    # tutorial-v1 pin. Without this, delivery_module drags in its own master-
+    # branch module-builder (newer, incompatible with basecamp v0.1.1's bundled
+    # delivery_module wire format) as a second entry in flake.lock. That extra
+    # entry silently wins when a UI flake does `--override-input tictactoe
+    # path:...` and breaks the tutorial-sanctioned local-dev workflow.
+    # TODO: remove once upstream tutorial / module-builder scaffold emits this
+    # `follows` wiring automatically. Tracking:
+    # https://github.com/logos-co/logos-module-builder/issues/83
+    delivery_module.inputs.logos-module-builder.follows = "logos-module-builder";
   };
 
-  outputs = inputs@{ logos-module-builder, ... }:
+  outputs = inputs@{ logos-module-builder, delivery_module, ... }:
     logos-module-builder.lib.mkLogosModule {
       src = ./.;
       configFile = ./metadata.json;
       flakeInputs = inputs;
+
+      # Workaround: module-builder's `vendor_path` external-library handler
+      # (logos-plugin-qt/lib/buildPlugin.nix) only copies `lib*` files from the
+      # vendor dir — it does NOT run `build_command`, unlike the flake-input
+      # path in mkExternalLib.nix. Without this, the plugin links with 7
+      # undefined `tictactoe_*` symbols (lazy-bound) and crashes at first call
+      # inside basecamp. The tutorial doc tells developers to compile manually
+      # before `nix build`; we do it in-sandbox for reproducibility.
+      # TODO: remove once module-builder honors build_command for vendor_path.
+      preConfigure = ''
+        if [ -f lib/libtictactoe.c ] && [ ! -f lib/libtictactoe.so ]; then
+          echo "Compiling vendored libtictactoe.so..."
+          (cd lib && gcc -shared -fPIC -o libtictactoe.so libtictactoe.c)
+        fi
+      '';
     };
 }

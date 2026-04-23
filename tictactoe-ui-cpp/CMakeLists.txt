@@ -21,4 +21,3 @@ logos_module(
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 target_link_libraries(tictactoe_ui_cpp_module_plugin PRIVATE Qt6::Widgets)
-

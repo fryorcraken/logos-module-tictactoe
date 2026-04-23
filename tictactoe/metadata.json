@@ -5,14 +5,19 @@
   "category": "game",
   "description": "Tic-tac-toe module wrapping the libtictactoe C library",
   "main": "tictactoe_plugin",
-  "dependencies": [],
+  "dependencies": ["delivery_module"],
 
   "nix": {
     "packages": {
-      "build": [],
-      "runtime": []
+      "build": ["protobuf"],
+      "runtime": ["protobuf"]
     },
-    "external_libraries": [],
+    "external_libraries": [
+      {
+        "name": "tictactoe",
+        "vendor_path": "lib"
+      }
+    ],
     "cmake": {
       "find_packages": [],
       "extra_sources": [],

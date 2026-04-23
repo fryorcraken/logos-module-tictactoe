@@ -2,6 +2,7 @@
 #define TICTACTOE_INTERFACE_H
 
 #include <QObject>
+#include <QString>
 #include "interface.h"
 
 /**
@@ -48,6 +49,45 @@ public:
      * @brief Return whose turn it is as a TicTacToeCell int (1=X, 2=O).
      */
     Q_INVOKABLE virtual int currentPlayer() = 0;
+
+    // ── Multiplayer ────────────────────────────────────────────────
+    /**
+     * @brief Enable multiplayer via the delivery module.
+     * Creates a delivery node, subscribes to the game topic, and
+     * auto-broadcasts moves. Emits eventResponse("mpStatusChanged").
+     */
+    Q_INVOKABLE virtual void enableMultiplayer() = 0;
+
+    /**
+     * @brief Disable multiplayer and disconnect from delivery.
+     */
+    Q_INVOKABLE virtual void disableMultiplayer() = 0;
+
+    /**
+     * @brief Multiplayer connection status.
+     * @return 0=off, 1=connecting, 2=connected, 3=error
+     */
+    Q_INVOKABLE virtual int mpStatus() = 0;
+
+    /**
+     * @brief Whether the delivery module is connected (0=no, 1=yes).
+     */
+    Q_INVOKABLE virtual int mpConnected() = 0;
+
+    /**
+     * @brief Number of messages sent via delivery.
+     */
+    Q_INVOKABLE virtual int mpMessagesSent() = 0;
+
+    /**
+     * @brief Number of messages received via delivery.
+     */
+    Q_INVOKABLE virtual int mpMessagesReceived() = 0;
+
+    /**
+     * @brief Last delivery error message, empty if none.
+     */
+    Q_INVOKABLE virtual QString mpError() = 0;
 };
 
 #define TicTacToeInterface_iid "org.logos.TicTacToeInterface"
