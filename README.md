@@ -180,10 +180,12 @@ To use: click **Enable Multiplayer** in either UI. The delivery node starts, sub
 
 ### Limitations
 
+Multiplayer is intentionally naive — no auth, no session scoping, no state sync. Both sides trust every message on the topic.
+
 - No game state synchronization — both players must start a new game before playing
 - No player assignment — both sides can play any cell (honor system)
 - No lobby or matchmaking — all instances on the same network share one game
-- Self-echo — a player's own moves come back over Waku and are replayed locally. The real fix requires a per-player identifier and per-game session scoping so each side only consumes peer moves
+- Self-echo — a player's own moves and newGame broadcasts come back over Waku and are replayed locally. The real fix requires a per-player identifier and per-game session scoping so each side only consumes peer messages
 
 ## Known Limitations
 

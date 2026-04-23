@@ -162,11 +162,16 @@ void TicTacToePlugin::enableMultiplayer()
         return;
     }
 
-    // Register event handlers before start so we don't miss early events.
-    // Register once per plugin lifetime — LogosAPIConsumer::onEvent appends
+    // Register delivery_module event handlers before the start/subscribe
+    // RPCs so Qt has them in place when events start arriving. Lambdas
+    // gate on m_mpEnabled so they stay inert until the enable sequence
+    // succeeds and during/after disableMultiplayer. Registration itself
+    // runs once per plugin lifetime — LogosAPIConsumer::onEvent appends
     // without dedup and exposes no .off(), so a naive enable → disable →
-    // enable cycle stacks duplicate handlers. Lambdas gate on m_mpEnabled
-    // to no-op while multiplayer is disabled.
+    // enable cycle would otherwise stack duplicate handlers. Events
+    // arrive via Qt queued connections from the host's RPC thread, so
+    // they cannot fire synchronously inside our start() call — the
+    // m_mpEnabled gate will not drop a same-stack event.
     if (!m_handlersRegistered) {
         logos->delivery_module.on("messageReceived",
             [this](const QString& /*eventName*/, const QVariantList& data) {
