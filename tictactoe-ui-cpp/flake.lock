@@ -4,27 +4,23 @@
       "inputs": {
         "logos-delivery": "logos-delivery",
         "logos-module-builder": [
+          "tictactoe",
           "logos-module-builder"
         ],
-        "nix-bundle-lgx": "nix-bundle-lgx_4",
-        "zerokit": [
-          "tictactoe",
-          "delivery_module",
-          "logos-delivery",
-          "zerokit"
-        ]
+        "nix-bundle-lgx": "nix-bundle-lgx_4"
       },
       "locked": {
-        "lastModified": 1776266872,
-        "narHash": "sha256-ii8wjA61HpyKZIKTw+qDwfHLujPbJbD1XqieeXiI0As=",
+        "lastModified": 1776824013,
+        "narHash": "sha256-FoZWY7E120VT7Eo4CgGLStWLkf220RjbV7shFIRN03w=",
         "owner": "logos-co",
         "repo": "logos-delivery-module",
-        "rev": "958464c807980c2044bfdd8872cc14a178b15ab8",
+        "rev": "1fde1566291fe062b98255003b9166b0261c6081",
         "type": "github"
       },
       "original": {
         "owner": "logos-co",
         "repo": "logos-delivery-module",
+        "rev": "1fde1566291fe062b98255003b9166b0261c6081",
         "type": "github"
       }
     },
@@ -2664,16 +2660,11 @@
         "delivery_module": "delivery_module",
         "logos-module-builder": [
           "logos-module-builder"
-        ],
-        "nix-bundle-lgx": [
-          "tictactoe",
-          "logos-module-builder",
-          "nix-bundle-lgx"
         ]
       },
       "locked": {
-        "lastModified": 1776816340,
-        "narHash": "sha256-Ziyx3tvL56Uppi8j1OloFZXJeWG5P/Vi2mXDHcGTkVw=",
+        "lastModified": 1776842441,
+        "narHash": "sha256-H9xB8sbXzZY34Wszqhjn49llPpyeASMGF5k+IH/XjeQ=",
         "path": "/home/fryorcraken/src/fryorcraken/logos-module-tictactoe/tictactoe",
         "type": "path"
       },
