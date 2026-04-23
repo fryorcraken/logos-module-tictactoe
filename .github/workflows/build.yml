@@ -48,11 +48,41 @@ jobs:
           cp tictactoe-ui-qml/result-lgx/logos-tictactoe_ui_qml-lib.lgx                     dist/logos-tictactoe_ui_qml-lib-dev.lgx
           ls -la dist/
 
-      - name: Upload LGX bundle
+      - name: Upload core portable LGX
         uses: actions/upload-artifact@v4
         with:
-          name: tictactoe-lgx-bundle
-          path: dist/*.lgx
+          name: logos-tictactoe-module-lib.lgx
+          path: dist/logos-tictactoe-module-lib.lgx
+
+      - name: Upload UI portable LGX
+        uses: actions/upload-artifact@v4
+        with:
+          name: logos-tictactoe_ui_cpp-module-lib.lgx
+          path: dist/logos-tictactoe_ui_cpp-module-lib.lgx
+
+      - name: Upload QML UI portable LGX
+        uses: actions/upload-artifact@v4
+        with:
+          name: logos-tictactoe_ui_qml-lib.lgx
+          path: dist/logos-tictactoe_ui_qml-lib.lgx
+
+      - name: Upload core dev LGX
+        uses: actions/upload-artifact@v4
+        with:
+          name: logos-tictactoe-module-lib-dev.lgx
+          path: dist/logos-tictactoe-module-lib-dev.lgx
+
+      - name: Upload UI dev LGX
+        uses: actions/upload-artifact@v4
+        with:
+          name: logos-tictactoe_ui_cpp-module-lib-dev.lgx
+          path: dist/logos-tictactoe_ui_cpp-module-lib-dev.lgx
+
+      - name: Upload QML UI dev LGX
+        uses: actions/upload-artifact@v4
+        with:
+          name: logos-tictactoe_ui_qml-lib-dev.lgx
+          path: dist/logos-tictactoe_ui_qml-lib-dev.lgx
 
   release:
     needs: build
@@ -63,8 +93,9 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: tictactoe-lgx-bundle
+          pattern: "logos-*.lgx"
           path: dist
+          merge-multiple: true
 
       - name: Create release
         uses: softprops/action-gh-release@v2
