@@ -53,8 +53,9 @@ private:
     TicTacToeGame* m_game = nullptr;
     LogosModules*  logos  = nullptr;
 
-    bool    m_mpEnabled   = false;
-    bool    m_mpConnected = false;
+    bool    m_mpEnabled           = false;
+    bool    m_mpConnected         = false;
+    bool    m_handlersRegistered  = false;
     int     m_msgSent     = 0;
     int     m_msgReceived = 0;
     QString m_mpError;
