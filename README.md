@@ -6,9 +6,7 @@ A tic-tac-toe Logos mini app. Contains a core module and two alternative UI fron
 - **tictactoe_ui** (C++ widget UI) — compiled C++ Qt widget frontend, calls the core module via the generated Logos SDK (Tutorial Part 3, Option B)
 - **tictactoe_ui_qml** (QML UI) — declarative QML frontend, calls the core module via the `logos.callModule()` bridge (Tutorial Part 2). No compilation needed.
 
-Both UIs share the same core gameplay — 3x3 board, X/O turns, win/draw detection with dark-theme styling. The QML UI is significantly simpler: 1 file / ~170 LOC vs 7 files / ~310 LOC for the C++ widget UI, with no compilation needed. The C++ UI additionally supports **experimental multiplayer** via the [delivery module](https://github.com/logos-co/logos-delivery-module) (Waku messaging).
-
-> **QML event limitation:** The QML UI does not support multiplayer. `LogosQmlBridge` only exposes `callModule()` — there is no event subscription mechanism for QML plugins. All Logos UIs that receive async events (logos-waku-ui, logos-chat-legacy-ui) use a hybrid C++/QML architecture with type `"ui"`, not `"ui_qml"`.
+Both UIs share the same core gameplay — 3x3 board, X/O turns, win/draw detection with dark-theme styling — and both support **experimental multiplayer** via the [delivery module](https://github.com/logos-co/logos-delivery-module) (Waku messaging). The QML UI is significantly simpler: 1 file / ~270 LOC vs 7 files / ~350 LOC for the C++ widget UI, with no compilation needed. Multiplayer logic lives in the core module; the UIs subscribe to its events (C++ via the generated SDK's `onEvent`, QML via `logos.onModuleEvent`).
 
 Built following the [Logos module tutorials](https://github.com/logos-co/logos-tutorial) (Part 1 + Part 2 + Part 3, Option B).
 
@@ -100,17 +98,17 @@ Output: QML files staged in `tictactoe-ui-qml/result/`.
 
 ### Generate LGX
 
-Each flake exposes `.#lgx-dual`, which packages both the `linux-amd64` (portable, for Basecamp) and `linux-amd64-dev` (nix-built, for `lgpm`) variants into a single `.lgx`. This is the only build variant the project ships — one artifact covers both install paths.
+Each flake exposes `.#lgx-portable`, which packages the `linux-amd64` portable variant for Basecamp. This is the artifact CI publishes and the one the release workflow attaches.
 
 ```bash
 cd tictactoe
-nix build '.#lgx-dual' --out-link result-lgx-dual
+nix build '.#lgx-portable' --out-link result-lgx-portable
 
 cd tictactoe-ui-cpp
-nix build '.#lgx-dual' --override-input tictactoe path:../tictactoe --out-link result-lgx-dual
+nix build '.#lgx-portable' --override-input tictactoe path:../tictactoe --out-link result-lgx-portable
 
 cd tictactoe-ui-qml
-nix build '.#lgx-dual' --override-input tictactoe path:../tictactoe --out-link result-lgx-dual
+nix build '.#lgx-portable' --override-input tictactoe path:../tictactoe --out-link result-lgx-portable
 ```
 
 The bundler used is the one pinned by `logos-module-builder`, so the version stays aligned with the rest of the build toolchain.
@@ -131,9 +129,9 @@ nix build 'github:logos-co/logos-module#lm' --out-link ../tools/lm
 cd tictactoe
 nix build 'github:logos-co/logos-logoscore-cli/tutorial-v1' --out-link ../tools/logos
 nix build 'github:logos-co/logos-package-manager/tutorial-v1#cli' --out-link ../tools/pm
-nix build '.#lgx'
+nix build '.#lgx-portable' --out-link result-lgx-portable
 mkdir -p ../tools/modules
-../tools/pm/bin/lgpm --modules-dir ../tools/modules install --file result/*.lgx
+../tools/pm/bin/lgpm --modules-dir ../tools/modules install --file result-lgx-portable/*.lgx
 
 ../tools/logos/bin/logoscore -D -m ../tools/modules &
 ../tools/logos/bin/logoscore load-module tictactoe
@@ -172,20 +170,20 @@ Basecamp will re-preinstall its bundled modules on next launch.
 
 ## Multiplayer (experimental)
 
-The C++ UI supports basic multiplayer via the [delivery module](https://github.com/logos-co/logos-delivery-module) (Waku messaging network). When enabled, each move is broadcast to all peers on the same content topic.
+Both UIs support basic multiplayer via the [delivery module](https://github.com/logos-co/logos-delivery-module) (Waku messaging network). When enabled, each move is broadcast to all peers on the same content topic. Multiplayer logic lives in the core `tictactoe` module — the UIs just call `enableMultiplayer` / `disableMultiplayer` and subscribe to `remoteMove` / `remoteNewGame` / `mpStatusChanged` events.
 
 - **Content topic:** `/tictactoe/1/moves/proto` ([LIP-23](https://lip.logos.co/messaging/informational/23/topics.html#content-topics))
 - **Wire format:** Protocol Buffers (`proto/tictactoe.proto`)
 - **Network preset:** `logos.dev` (Logos Dev Network, cluster 2)
 
-To use: click **Enable Multiplayer** in the C++ UI. The delivery node starts, subscribes to the topic, and broadcasts/receives moves. The status line shows sent/received message counts.
+To use: click **Enable Multiplayer** in either UI. The delivery node starts, subscribes to the topic, and broadcasts/receives moves. The status line shows sent/received message counts.
 
 ### Limitations
 
 - No game state synchronization — both players must start a new game before playing
 - No player assignment — both sides can play any cell (honor system)
 - No lobby or matchmaking — all instances on the same network share one game
-- Only the C++ UI supports multiplayer (see QML limitation above)
+- Self-echo — a player's own moves come back over Waku and are replayed locally. The real fix requires a per-player identifier and per-game session scoping so each side only consumes peer moves
 
 ## Known Limitations
 
