@@ -5,7 +5,7 @@
   "type": "ui_qml",
   "main": "Main.qml",
   "view": "Main.qml",
-  "dependencies": ["tictactoe"],
+  "dependencies": ["delivery_module", "tictactoe"],
   "category": "games",
   "icon": "icons/tictactoe.png",
 

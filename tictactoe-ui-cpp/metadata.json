@@ -6,7 +6,7 @@
   "description": "Tic-tac-toe C++ UI — widget frontend for tictactoe module",
   "main": "tictactoe_ui_cpp_plugin",
   "icon": "icons/tictactoe.png",
-  "dependencies": ["tictactoe"],
+  "dependencies": ["delivery_module", "tictactoe"],
 
   "nix": {
     "packages": {
